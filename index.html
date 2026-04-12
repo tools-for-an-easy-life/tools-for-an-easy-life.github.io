@@ -726,154 +726,177 @@ function selectFmt(fmt, btn) {
 // ══════════════════════════════════════════════════════════════
 document.getElementById('convertBtn').addEventListener('click', runConvert);
 
+// --- CONFIGURATION ---
+// Ensure your CFG object (token, repo) is correctly populated from your settings UI
+
 async function runConvert() {
-  if(!CFG.token || !CFG.repo) { openSettings(); showErr('Check settings.'); return; }
-  if(!file || !toFmt) return;
+    if (!CFG.token || !CFG.repo) { 
+        alert('Please configure your GitHub Token and Repository in settings.'); 
+        return; 
+    }
+    if (!file || !toFmt) return;
 
-  clearResult();
-  document.getElementById('convertBtn').disabled = true;
+    // Reset UI
+    clearResult();
+    document.getElementById('convertBtn').disabled = true;
 
-  const steps = [
-    { id:'upload',   label:'Uploading to GitHub...' },
-    { id:'trigger',  label:'Waiting for Indexing...' },
-    { id:'wait',     label:'Waiting for Runner...' },
-    { id:'convert',  label:'Converting...' },
-    { id:'download', label:'Downloading...' },
-  ];
-  renderSteps(steps); 
-  showStatus();
-  setProg(5);
+    const steps = [
+        { id: 'upload', label: 'Step 1: Uploading to GitHub Storage...' },
+        { id: 'trigger', label: 'Step 2: Syncing & Triggering Action...' },
+        { id: 'wait', label: 'Step 3: Waiting for GitHub Runner...' },
+        { id: 'convert', label: 'Step 4: Converting (High Precision)...' },
+        { id: 'download', label: 'Step 5: Downloading Result...' },
+    ];
+    renderSteps(steps);
+    showStatus();
+    setProg(5);
 
-  try {
-    const [owner, repo] = CFG.repo.split('/');
-    
-    // SANITIZE: Use a generic name for the storage path to avoid Shell errors
-    const timestamp = Date.now();
-    const extension = file.name.split('.').pop();
-    const storageName = `file_${timestamp}.${extension}`;
-    const tempPath = `temp_uploads/${storageName}`;
+    try {
+        const [owner, repo] = CFG.repo.split('/');
+        
+        // 1. SANITIZE FILENAME
+        // We use a simple timestamp name for the storage path to avoid Shell errors with special chars
+        const timestamp = Date.now();
+        const extension = file.name.split('.').pop();
+        const storageName = `file_${timestamp}.${extension}`;
+        const tempPath = `temp_uploads/${storageName}`;
 
-    // STEP 1: UPLOAD
-    activateStep('upload');
-    const b64 = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.readAsDataURL(file);
-    });
+        // STEP 1: UPLOAD FILE
+        activateStep('upload');
+        const b64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result.split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
 
-    const up = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
-      method: 'PUT',
-      headers: { 'Authorization': `token ${CFG.token}` },
-      body: JSON.stringify({ message: 'upload', content: b64, branch: 'main' })
-    });
-    if(!up.ok) throw new Error("Upload failed. Check token/repo.");
-    doneStep('upload');
-    setProg(20);
+        const up = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `token ${CFG.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                message: `Upload for conversion: ${file.name}`, 
+                content: b64, 
+                branch: 'main' // Ensure this matches your repo branch (main/master)
+            })
+        });
 
-    // STEP 2: TRIGGER (Wait 10s first)
-    activateStep('trigger');
-    await new Promise(r => setTimeout(r, 10000)); 
-    
-    const trigger = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
-      method: 'POST',
-      headers: { 'Authorization': `token ${CFG.token}`, 'Accept': 'application/vnd.github.v3+json' },
-      body: JSON.stringify({
-        ref: 'main',
-        inputs: {
-          file_path: tempPath,
-          filename: file.name, // The runner uses this for the actual conversion name
-          target_format: toFmt
+        if (!up.ok) throw new Error("Upload failed. Check your token permissions (repo/contents).");
+        doneStep('upload');
+        setProg(20);
+
+        // STEP 2: TRIGGER ACTION (With a 10s safety delay for indexing)
+        activateStep('trigger');
+        await new Promise(r => setTimeout(r, 10000)); 
+
+        const trigger = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `token ${CFG.token}`,
+                'Accept': 'application/vnd.github.v3+json' 
+            },
+            body: JSON.stringify({
+                ref: 'main',
+                inputs: {
+                    file_path: tempPath,
+                    filename: file.name, // The original name is passed here for final naming
+                    target_format: toFmt
+                }
+            })
+        });
+
+        if (!trigger.ok) throw new Error("Workflow trigger failed. Check if convert.yml exists.");
+        doneStep('trigger');
+        setProg(40);
+
+        // STEP 3: POLL FOR RUN ID
+        activateStep('wait');
+        const runId = await pollForRun(owner, repo, 60);
+        doneStep('wait');
+        setProg(60);
+
+        // STEP 4: WAIT FOR COMPLETION
+        activateStep('convert');
+        // Increased timeout to 20 mins for large files
+        await waitForRun(owner, repo, runId, 1200); 
+        doneStep('convert');
+        setProg(85);
+
+        // STEP 5: DOWNLOAD
+        activateStep('download');
+        const blob = await downloadArtifact(owner, repo, runId);
+        doneStep('download');
+        setProg(100);
+
+        // Display Success
+        resultBlob = blob;
+        resultName = file.name.replace(/\.[^.]+$/, '') + '.' + toFmt;
+        document.getElementById('resName').textContent = resultName;
+        document.getElementById('resultCard').classList.add('show');
+
+    } catch (e) {
+        errorStep();
+        showErr(e.message);
+        console.error(e);
+    } finally {
+        document.getElementById('convertBtn').disabled = false;
+    }
+}
+
+// --- HELPER FUNCTIONS ---
+
+async function pollForRun(owner, repo, timeout) {
+    const start = Date.now();
+    while (Date.now() - start < timeout * 1000) {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?event=workflow_dispatch`, {
+            headers: { 'Authorization': `token ${CFG.token}` }
+        });
+        const data = await res.json();
+        if (data.workflow_runs && data.workflow_runs.length > 0) {
+            const latest = data.workflow_runs[0];
+            // Match runs created in the last 30 seconds
+            if (new Date(latest.created_at) > new Date(Date.now() - 30000)) return latest.id;
         }
-      })
-    });
-    if(!trigger.ok) throw new Error("Trigger failed.");
-    doneStep('trigger');
-    setProg(40);
-
-    // STEP 3: POLL
-    activateStep('wait');
-    const runId = await pollForRun(owner, repo, 60);
-    doneStep('wait');
-    setProg(60);
-
-    // STEP 4: CONVERT
-    activateStep('convert');
-    await waitForRun(owner, repo, runId, 1200);
-    doneStep('convert');
-    setProg(85);
-
-    // STEP 5: DOWNLOAD
-    activateStep('download');
-    const blob = await downloadArtifact(owner, repo, runId);
-    doneStep('download');
-    setProg(100);
-
-    resultBlob = blob;
-    resultName = file.name.replace(/\.[^.]+$/, '') + '.' + toFmt;
-    document.getElementById('resName').textContent = resultName;
-    document.getElementById('resultCard').classList.add('show');
-
-  } catch(e) {
-    errorStep();
-    showErr(e.message);
-  } finally {
-    document.getElementById('convertBtn').disabled = false;
-  }
-}
-
-// Helper: Poll for the new Run ID
-async function pollForRun(owner, repo, timeoutSec) {
-  const start = Date.now();
-  while(Date.now() - start < timeoutSec * 1000) {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?event=workflow_dispatch`, {
-      headers: { 'Authorization': `token ${CFG.token}` }
-    });
-    const data = await res.json();
-    if(data.workflow_runs && data.workflow_runs.length > 0) {
-      const latest = data.workflow_runs[0];
-      // Ensure the run is newer than our request
-      if(new Date(latest.created_at) > new Date(start - 10000)) return latest.id;
+        await new Promise(r => setTimeout(r, 3000));
     }
-    await new Promise(r => setTimeout(r, 3000));
-  }
-  throw new Error("Timeout waiting for GitHub to start the job.");
+    throw new Error("GitHub took too long to start the job.");
 }
 
-// Helper: Wait for completion
-async function waitForRun(owner, repo, runId, timeoutSec) {
-  const start = Date.now();
-  while(Date.now() - start < timeoutSec * 1000) {
-    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`, {
-      headers: { 'Authorization': `token ${CFG.token}` }
-    });
-    const data = await res.json();
-    if(data.status === 'completed') {
-      if(data.conclusion !== 'success') throw new Error("Conversion failed on GitHub.");
-      return true;
+async function waitForRun(owner, repo, runId, timeout) {
+    const start = Date.now();
+    while (Date.now() - start < timeout * 1000) {
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`, {
+            headers: { 'Authorization': `token ${CFG.token}` }
+        });
+        const data = await res.json();
+        if (data.status === 'completed') {
+            if (data.conclusion !== 'success') throw new Error("Conversion failed on GitHub Runner.");
+            return true;
+        }
+        await new Promise(r => setTimeout(r, 5000));
     }
-    await new Promise(r => setTimeout(r, 5000));
-  }
-  throw new Error("Conversion timed out.");
+    throw new Error("Conversion timed out.");
 }
 
-// Helper: Download Zip Artifact and extract the file
 async function downloadArtifact(owner, repo, runId) {
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`, {
-    headers: { 'Authorization': `token ${CFG.token}` }
-  });
-  const data = await res.json();
-  if(!data.artifacts || data.artifacts.length === 0) throw new Error("No output file found.");
-  
-  const artRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${data.artifacts[0].id}/zip`, {
-    headers: { 'Authorization': `token ${CFG.token}` }
-  });
-  const zipBlob = await artRes.blob();
-  
-  // Extract from ZIP using JSZip
-  const zip = await JSZip.loadAsync(zipBlob);
-  const files = Object.keys(zip.files);
-  const output = await zip.files[files[0]].async("blob");
-  return output;
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`, {
+        headers: { 'Authorization': `token ${CFG.token}` }
+    });
+    const data = await res.json();
+    if (!data.artifacts || data.artifacts.length === 0) throw new Error("No output file found.");
+
+    const artRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${data.artifacts[0].id}/zip`, {
+        headers: { 'Authorization': `token ${CFG.token}` }
+    });
+    const zipBlob = await artRes.blob();
+
+    // Use JSZip (Ensure you have <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script> in your head)
+    const zip = await JSZip.loadAsync(zipBlob);
+    const files = Object.keys(zip.files);
+    // Grab the first file (which is our final_result.ext)
+    return await zip.files[files[0]].async("blob");
 }
 
 async function ghFetch(path) {
