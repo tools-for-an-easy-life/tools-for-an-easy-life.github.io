@@ -33,51 +33,35 @@ jobs:
       - name: Prepare Input File
         run: |
           FILE_PATH="${{ github.event.inputs.file_path }}"
-          SAFE_FILENAME="${{ github.event.inputs.filename }}"
+          # Extract the extension from the original filename
+          ORIGINAL_NAME="${{ github.event.inputs.filename }}"
+          EXT="${ORIGINAL_NAME##*.}"
           
-          # Wait loop to handle GitHub API indexing delay
-          MAX_RETRIES=10
-          COUNT=0
-          while [ ! -f "$FILE_PATH" ] && [ $COUNT -lt $MAX_RETRIES ]; do
-            echo "Waiting for file to appear in storage... ($COUNT)"
-            sleep 5
-            git pull origin main
-            COUNT=$((COUNT+1))
-          done
-
-          if [ -f "$FILE_PATH" ]; then
-            # Quote paths to handle any remaining special characters
-            mv "$FILE_PATH" "/tmp/input_file"
-            echo "File found and prepared."
-          else
-            echo "ERROR: File $FILE_PATH not found."
-            exit 1
-          fi
+          # Move file to /tmp and keep the extension so Calibre is happy
+          mv "$FILE_PATH" "/tmp/input_file.$EXT"
+          echo "File prepared as /tmp/input_file.$EXT"
 
       - name: Convert File
         run: |
-          INPUT="/tmp/input_file"
+          # Get the extension again for the script
+          ORIGINAL_NAME="${{ github.event.inputs.filename }}"
+          EXT="${ORIGINAL_NAME##*.}"
+          
+          INPUT="/tmp/input_file.$EXT"
           TARGET="${{ github.event.inputs.target_format }}"
           TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
           OUTPUT="/tmp/final_result.$TARGET"
           
-          # Absolute cleanup of the temp directory to prevent ZIP bloat
           rm -rf /tmp/output* /tmp/final_result*
+          echo "Converting $EXT to $TARGET..."
 
-          echo "Converting to $TARGET..."
-
-          # --- Optimized Conversion Logic ---
           if [ "$TARGET" = "epub" ]; then
-            # Specific fixes for PDF-to-EPUB bloat
             ebook-convert "$INPUT" "$OUTPUT" \
               --enable-heuristics \
-              --compress-images \
-              --prefer-metadata-cover \
-              --smarten-punctuation
+              --compress-images
           
           elif [ "$TARGET" = "pdf" ]; then
-            # High-compatibility PDF generation
-            if [[ "${{ github.event.inputs.filename }}" =~ \.(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
+            if [[ "$EXT" =~ ^(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
               libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
               mv /tmp/*.pdf "$OUTPUT"
             else
@@ -85,15 +69,9 @@ jobs:
             fi
 
           elif [[ "$TARGET" =~ ^(mp4|webm|mp3|wav|ogg)$ ]]; then
-            # Media conversion
             ffmpeg -i "$INPUT" -map_metadata 0 "$OUTPUT" -y
 
-          elif [[ "$TARGET" =~ ^(jpg|png|webp|gif)$ ]]; then
-            # Image conversion
-            convert "$INPUT" "$OUTPUT"
-
           else
-            # Universal fallback
             pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
           fi
 
