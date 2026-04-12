@@ -3,8 +3,8 @@ name: Convert File
 on:
   workflow_dispatch:
     inputs:
-      file_b64:
-        description: 'Base64-encoded input file'
+      file_path:
+        description: 'Relative path to the uploaded file in the repo'
         required: true
       filename:
         description: 'Original filename (e.g. report.docx)'
@@ -12,16 +12,17 @@ on:
       target_format:
         description: 'Target format (e.g. pdf, epub, png)'
         required: true
-      options:
-        description: 'JSON options string (optional)'
-        required: false
-        default: '{}'
 
 jobs:
   convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Install converters
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Converters
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
@@ -37,12 +38,18 @@ jobs:
             python3-pip
           pip3 install --quiet pillow
 
-      - name: Decode input file
+      - name: Prepare Input File
         run: |
-          echo "${{ github.event.inputs.file_b64 }}" | base64 -d > "/tmp/input_${{ github.event.inputs.filename }}"
-          echo "Input file written."
+          # Move the file from the repo storage to the /tmp workspace for processing
+          if [ -f "${{ github.event.inputs.file_path }}" ]; then
+            mv "${{ github.event.inputs.file_path }}" "/tmp/input_${{ github.event.inputs.filename }}"
+            echo "File prepared for conversion."
+          else
+            echo "ERROR: File not found at ${{ github.event.inputs.file_path }}"
+            exit 1
+          fi
 
-      - name: Convert file
+      - name: Convert File
         run: |
           INPUT="/tmp/input_${{ github.event.inputs.filename }}"
           EXT="${{ github.event.inputs.filename }}"
@@ -88,9 +95,7 @@ jobs:
               docx|doc|odt|pptx|ppt|xlsx|xls)
                 libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
                 LIBREOUT=$(ls /tmp/*.pdf 2>/dev/null | head -1)
-                if [ -f "$LIBREOUT" ]; then
-                  mv "$LIBREOUT" "$OUTPUT"
-                fi
+                if [ -f "$LIBREOUT" ]; then mv "$LIBREOUT" "$OUTPUT"; fi
                 ;;
               html|htm)
                 wkhtmltopdf "$INPUT" "$OUTPUT" 2>/dev/null || pandoc "$INPUT" -o "$OUTPUT"
@@ -101,8 +106,7 @@ jobs:
                 wkhtmltopdf - "$OUTPUT" < "$INPUT"
                 ;;
               epub)
-                ebook-convert "$INPUT" "$OUTPUT" 2>/dev/null || \
-                pandoc "$INPUT" -o "$OUTPUT"
+                ebook-convert "$INPUT" "$OUTPUT" 2>/dev/null || pandoc "$INPUT" -o "$OUTPUT"
                 ;;
               png|jpg|jpeg|webp|tiff|gif)
                 convert "$INPUT" "$OUTPUT"
@@ -153,98 +157,17 @@ jobs:
               pandoc "$INPUT" -f "$PANDOC_FROM" -t "$PANDOC_TO" -o "$OUTPUT"
             fi
 
-          # ── Pandoc text/markup conversions ───────────────────────────────
-          elif [ -n "$PANDOC_FROM" ] && [ -n "$PANDOC_TO" ]; then
-            pandoc "$INPUT" -f "$PANDOC_FROM" -t "$PANDOC_TO" -o "$OUTPUT"
-
-          # ── Image conversions via ImageMagick ────────────────────────────
-          elif [[ "$EXT" =~ ^(png|jpg|jpeg|gif|bmp|webp|tiff|tif|ico|svg|avif|heic)$ ]]; then
-            case "$TARGET" in
-              png|jpg|jpeg|gif|bmp|webp|tiff|tif|ico)
-                convert "$INPUT" "$OUTPUT"
-                ;;
-              pdf)
-                convert "$INPUT" "$OUTPUT"
-                ;;
-              *)
-                echo "Unknown image target: $TARGET" && exit 1
-                ;;
-            esac
-
           # ── Audio conversions via FFmpeg ──────────────────────────────────
           elif [[ "$EXT" =~ ^(mp3|wav|ogg|flac|aac|m4a|opus|wma|aiff|ac3)$ ]]; then
-            case "$TARGET" in
-              mp3)  ffmpeg -i "$INPUT" -q:a 2 "$OUTPUT" -y ;;
-              wav)  ffmpeg -i "$INPUT" "$OUTPUT" -y ;;
-              ogg)  ffmpeg -i "$INPUT" -c:a libvorbis "$OUTPUT" -y ;;
-              flac) ffmpeg -i "$INPUT" "$OUTPUT" -y ;;
-              aac)  ffmpeg -i "$INPUT" -c:a aac "$OUTPUT" -y ;;
-              m4a)  ffmpeg -i "$INPUT" -c:a aac "$OUTPUT" -y ;;
-              opus) ffmpeg -i "$INPUT" -c:a libopus "$OUTPUT" -y ;;
-              mp4)  ffmpeg -i "$INPUT" -vn -c:a aac "$OUTPUT" -y ;;
-              *)    ffmpeg -i "$INPUT" "$OUTPUT" -y ;;
-            esac
+            ffmpeg -i "$INPUT" "$OUTPUT" -y
 
           # ── Video conversions via FFmpeg ──────────────────────────────────
           elif [[ "$EXT" =~ ^(mp4|avi|mov|mkv|webm|flv|wmv|m4v|3gp)$ ]]; then
-            case "$TARGET" in
-              mp4)  ffmpeg -i "$INPUT" -c:v libx264 -c:a aac "$OUTPUT" -y ;;
-              webm) ffmpeg -i "$INPUT" -c:v libvpx-vp9 -c:a libvorbis "$OUTPUT" -y ;;
-              avi)  ffmpeg -i "$INPUT" "$OUTPUT" -y ;;
-              mkv)  ffmpeg -i "$INPUT" -c copy "$OUTPUT" -y ;;
-              gif)  ffmpeg -i "$INPUT" -vf "fps=10,scale=480:-1:flags=lanczos" "$OUTPUT" -y ;;
-              mp3)  ffmpeg -i "$INPUT" -q:a 2 -map a "$OUTPUT" -y ;;
-              wav)  ffmpeg -i "$INPUT" -map a "$OUTPUT" -y ;;
-              *)    ffmpeg -i "$INPUT" "$OUTPUT" -y ;;
-            esac
+            ffmpeg -i "$INPUT" "$OUTPUT" -y
 
-          # ── Text/data formats ─────────────────────────────────────────────
-          elif [[ "$EXT" =~ ^(json|csv|tsv|yaml|yml|xml|toml)$ ]]; then
-            python3 - <<'PYEOF'
-          import json, csv, sys, os
-
-          input_file = "/tmp/input_${{ github.event.inputs.filename }}"
-          output_file = "/tmp/output.$TARGET"
-          src_ext = "$EXT"
-          dst_ext = "$TARGET"
-
-          def read_csv(path, sep=','):
-              with open(path, newline='', encoding='utf-8') as f:
-                  reader = csv.DictReader(f, delimiter=sep)
-                  return list(reader)
-
-          def write_csv(data, path, sep=','):
-              if not data: open(path,'w').close(); return
-              with open(path, 'w', newline='', encoding='utf-8') as f:
-                  writer = csv.DictWriter(f, fieldnames=data[0].keys(), delimiter=sep)
-                  writer.writeheader(); writer.writerows(data)
-
-          try:
-              if src_ext == 'json':
-                  with open(input_file, encoding='utf-8') as f: data = json.load(f)
-              elif src_ext in ('csv','tsv'):
-                  data = read_csv(input_file, '\t' if src_ext == 'tsv' else ',')
-              else:
-                  with open(input_file, encoding='utf-8') as f: data = f.read()
-
-              if dst_ext == 'json':
-                  with open(output_file, 'w', encoding='utf-8') as f:
-                      json.dump(data, f, indent=2, ensure_ascii=False)
-              elif dst_ext == 'csv':
-                  if isinstance(data, list): write_csv(data, output_file, ',')
-                  else:
-                      with open(output_file,'w') as f: f.write(str(data))
-              elif dst_ext == 'tsv':
-                  if isinstance(data, list): write_csv(data, output_file, '\t')
-                  else:
-                      with open(output_file,'w') as f: f.write(str(data))
-              else:
-                  with open(output_file,'w',encoding='utf-8') as f:
-                      f.write(json.dumps(data, indent=2) if not isinstance(data,str) else data)
-          except Exception as e:
-              print(f"Python conversion error: {e}", file=sys.stderr)
-              sys.exit(1)
-          PYEOF
+          # ── Image conversions via ImageMagick ────────────────────────────
+          elif [[ "$EXT" =~ ^(png|jpg|jpeg|gif|bmp|webp|tiff|tif|ico|svg|avif|heic)$ ]]; then
+            convert "$INPUT" "$OUTPUT"
 
           else
             echo "No converter found for $EXT → $TARGET" && exit 1
@@ -254,11 +177,19 @@ jobs:
             echo "ERROR: Output file not created." && exit 1
           fi
 
-          echo "Conversion complete. Size: $(du -sh "$OUTPUT" | cut -f1)"
-
-      - name: Upload artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: converted-file
           path: /tmp/output.${{ github.event.inputs.target_format }}
           retention-days: 1
+
+      - name: Cleanup Temp File
+        if: always()
+        run: |
+          # Remove the large file from the repo to keep it clean
+          git config --global user.name "Fileshift Bot"
+          git config --global user.email "bot@fileshift.local"
+          git rm -f "${{ github.event.inputs.file_path }}" || true
+          git commit -m "Cleanup: Remove processed file ${{ github.event.inputs.filename }}" || true
+          git push origin main || true
