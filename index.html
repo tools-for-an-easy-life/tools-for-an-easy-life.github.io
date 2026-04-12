@@ -820,7 +820,7 @@ async function runConvert() {
         // STEP 4: WAIT FOR COMPLETION
         activateStep('convert');
         // Increased timeout to 20 mins for large files
-        await waitForRun(owner, repo, runId, 1200); 
+        await waitForRun(owner, repo, runId, 500000); 
         doneStep('convert');
         setProg(85);
 
@@ -859,7 +859,7 @@ async function pollForRun(owner, repo, timeout) {
             // Match runs created in the last 30 seconds
             if (new Date(latest.created_at) > new Date(Date.now() - 30000)) return latest.id;
         }
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 500000));
     }
     throw new Error("GitHub took too long to start the job.");
 }
@@ -875,7 +875,7 @@ async function waitForRun(owner, repo, runId, timeout) {
             if (data.conclusion !== 'success') throw new Error("Conversion failed on GitHub Runner.");
             return true;
         }
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 500000));
     }
     throw new Error("Conversion timed out.");
 }
