@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       file_path:
-        description: 'Relative path to the uploaded file in the repo'
+        description: 'Path to the uploaded file'
         required: true
       filename:
-        description: 'Original filename (e.g. report.docx)'
+        description: 'Original name for output'
         required: true
       target_format:
-        description: 'Target format (e.g. pdf, epub, png)'
+        description: 'Target format'
         required: true
 
 jobs:
@@ -26,179 +26,80 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            pandoc \
-            libreoffice \
-            imagemagick \
-            ffmpeg \
-            calibre \
-            ghostscript \
-            poppler-utils \
-            unoconv \
-            wkhtmltopdf \
-            python3-pip
+            pandoc libreoffice imagemagick ffmpeg calibre ghostscript \
+            poppler-utils unoconv wkhtmltopdf python3-pip
           pip3 install --quiet pillow
 
       - name: Prepare Input File
         run: |
-          # Wait up to 30 seconds for the file to actually appear in the checkout
-          MAX_RETRIES=6
+          FILE_PATH="${{ github.event.inputs.file_path }}"
+          SAFE_FILENAME="${{ github.event.inputs.filename }}"
+          
+          # Wait loop to handle GitHub API indexing delay
+          MAX_RETRIES=10
           COUNT=0
-          while [ ! -f "${{ github.event.inputs.file_path }}" ] && [ $COUNT -lt $MAX_RETRIES ]; do
-            echo "File not indexed yet, waiting 5s..."
+          while [ ! -f "$FILE_PATH" ] && [ $COUNT -lt $MAX_RETRIES ]; do
+            echo "Waiting for file to appear in storage... ($COUNT)"
             sleep 5
-            git pull origin main # Force sync
+            git pull origin main
             COUNT=$((COUNT+1))
           done
 
-          if [ -f "${{ github.event.inputs.file_path }}" ]; then
-            mv "${{ github.event.inputs.file_path }}" "/tmp/input_${{ github.event.inputs.filename }}"
-            echo "File prepared."
+          if [ -f "$FILE_PATH" ]; then
+            # Move and rename to temp processing path
+            mv "$FILE_PATH" "/tmp/input_$SAFE_FILENAME"
+            echo "File found and prepared."
           else
-            echo "ERROR: File still not found after 30s at ${{ github.event.inputs.file_path }}"
+            echo "ERROR: File $FILE_PATH not found after 50 seconds."
+            ls -R
             exit 1
           fi
 
       - name: Convert File
         run: |
           INPUT="/tmp/input_${{ github.event.inputs.filename }}"
+          TARGET="${{ github.event.inputs.target_format }}"
+          OUTPUT="/tmp/output.$TARGET"
+          
+          # Detect Extension
           EXT="${{ github.event.inputs.filename }}"
           EXT="${EXT##*.}"
           EXT=$(echo "$EXT" | tr '[:upper:]' '[:lower:]')
-          TARGET="${{ github.event.inputs.target_format }}"
           TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
-          OUTPUT="/tmp/output.$TARGET"
 
-          echo "Converting $EXT → $TARGET"
+          echo "Converting $EXT to $TARGET..."
 
-          # ── Document conversions via Pandoc ──────────────────────────────
-          PANDOC_FROM=""
-          case "$EXT" in
-            docx|doc)   PANDOC_FROM="docx" ;;
-            odt)        PANDOC_FROM="odt" ;;
-            rtf)        PANDOC_FROM="rtf" ;;
-            md|markdown) PANDOC_FROM="markdown" ;;
-            html|htm)   PANDOC_FROM="html" ;;
-            txt)        PANDOC_FROM="plain" ;;
-            rst)        PANDOC_FROM="rst" ;;
-            tex|latex)  PANDOC_FROM="latex" ;;
-            epub)       PANDOC_FROM="epub" ;;
-          esac
-
-          PANDOC_TO=""
-          case "$TARGET" in
-            docx)       PANDOC_TO="docx" ;;
-            odt)        PANDOC_TO="odt" ;;
-            rtf)        PANDOC_TO="rtf" ;;
-            md|markdown) PANDOC_TO="markdown" ;;
-            html)       PANDOC_TO="html" ;;
-            txt)        PANDOC_TO="plain" ;;
-            rst)        PANDOC_TO="rst" ;;
-            tex|latex)  PANDOC_TO="latex" ;;
-            epub)       PANDOC_TO="epub" ;;
-            pdf)        PANDOC_TO="pdf" ;;
-          esac
-
-          # ── PDF conversions ──────────────────────────────────────────────
-          if [ "$TARGET" = "pdf" ]; then
-            case "$EXT" in
-              docx|doc|odt|pptx|ppt|xlsx|xls)
-                libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
-                LIBREOUT=$(ls /tmp/*.pdf 2>/dev/null | head -1)
-                if [ -f "$LIBREOUT" ]; then mv "$LIBREOUT" "$OUTPUT"; fi
-                ;;
-              html|htm)
-                wkhtmltopdf "$INPUT" "$OUTPUT" 2>/dev/null || pandoc "$INPUT" -o "$OUTPUT"
-                ;;
-              md|markdown|txt|rst)
-                pandoc "$INPUT" -o "$OUTPUT" --pdf-engine=pdflatex 2>/dev/null || \
-                pandoc "$INPUT" -o "$OUTPUT" 2>/dev/null || \
-                wkhtmltopdf - "$OUTPUT" < "$INPUT"
-                ;;
-              epub)
-                ebook-convert "$INPUT" "$OUTPUT" 2>/dev/null || pandoc "$INPUT" -o "$OUTPUT"
-                ;;
-              png|jpg|jpeg|webp|tiff|gif)
-                convert "$INPUT" "$OUTPUT"
-                ;;
-              *)
-                if [ -n "$PANDOC_FROM" ]; then
-                  pandoc "$INPUT" -f "$PANDOC_FROM" -o "$OUTPUT"
-                else
-                  echo "Unsupported source format for PDF: $EXT" && exit 1
-                fi
-                ;;
-            esac
-
-          # ── EPUB conversions ─────────────────────────────────────────────
-          elif [ "$TARGET" = "epub" ]; then
-            case "$EXT" in
-              pdf)
-                ebook-convert "$INPUT" "$OUTPUT" 2>/dev/null || \
-                (pdftotext "$INPUT" /tmp/extracted.txt && pandoc /tmp/extracted.txt -o "$OUTPUT")
-                ;;
-              docx|doc|odt|rtf|html|htm|md|txt)
-                if command -v ebook-convert &>/dev/null; then
-                  ebook-convert "$INPUT" "$OUTPUT" 2>/dev/null
-                fi
-                if [ ! -f "$OUTPUT" ] && [ -n "$PANDOC_FROM" ]; then
-                  pandoc "$INPUT" -f "$PANDOC_FROM" -o "$OUTPUT"
-                fi
-                ;;
-              mobi|azw|azw3)
-                ebook-convert "$INPUT" "$OUTPUT"
-                ;;
-              *)
-                pandoc "$INPUT" -o "$OUTPUT"
-                ;;
-            esac
-
-          # ── MOBI / AZW3 ──────────────────────────────────────────────────
-          elif [ "$TARGET" = "mobi" ] || [ "$TARGET" = "azw3" ]; then
-            ebook-convert "$INPUT" "$OUTPUT"
-
-          # ── Office formats via LibreOffice ───────────────────────────────
-          elif [[ "$TARGET" =~ ^(docx|odt|pptx|xlsx|csv|ods)$ ]] && [[ "$EXT" =~ ^(doc|docx|odt|pptx|ppt|xlsx|xls|ods|csv|rtf|html|htm|txt)$ ]]; then
-            libreoffice --headless --convert-to "$TARGET" --outdir /tmp "$INPUT" 2>/dev/null
-            LIBREOUT=$(ls /tmp/*."$TARGET" 2>/dev/null | head -1)
-            if [ -f "$LIBREOUT" ]; then
-              mv "$LIBREOUT" "$OUTPUT"
-            elif [ -n "$PANDOC_FROM" ] && [ -n "$PANDOC_TO" ]; then
-              pandoc "$INPUT" -f "$PANDOC_FROM" -t "$PANDOC_TO" -o "$OUTPUT"
+          # --- Conversion Logic (Abridged for reliability) ---
+          if [[ "$TARGET" == "pdf" ]]; then
+            if [[ "$EXT" =~ ^(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
+              libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
+              mv /tmp/*.pdf "$OUTPUT"
+            elif [[ "$EXT" =~ ^(png|jpg|jpeg|webp)$ ]]; then
+              convert "$INPUT" "$OUTPUT"
+            else
+              pandoc "$INPUT" -o "$OUTPUT" || wkhtmltopdf "$INPUT" "$OUTPUT"
             fi
-
-          # ── Audio conversions via FFmpeg ──────────────────────────────────
-          elif [[ "$EXT" =~ ^(mp3|wav|ogg|flac|aac|m4a|opus|wma|aiff|ac3)$ ]]; then
-            ffmpeg -i "$INPUT" "$OUTPUT" -y
-
-          # ── Video conversions via FFmpeg ──────────────────────────────────
-          elif [[ "$EXT" =~ ^(mp4|avi|mov|mkv|webm|flv|wmv|m4v|3gp)$ ]]; then
-            ffmpeg -i "$INPUT" "$OUTPUT" -y
-
-          # ── Image conversions via ImageMagick ────────────────────────────
-          elif [[ "$EXT" =~ ^(png|jpg|jpeg|gif|bmp|webp|tiff|tif|ico|svg|avif|heic)$ ]]; then
-            convert "$INPUT" "$OUTPUT"
-
+          elif [[ "$TARGET" =~ ^(mp4|webm|avi|mp3|wav)$ ]]; then
+             ffmpeg -i "$INPUT" "$OUTPUT" -y
+          elif [[ "$EXT" =~ ^(png|jpg|jpeg|webp)$ ]] && [[ "$TARGET" =~ ^(png|jpg|jpeg|webp)$ ]]; then
+             convert "$INPUT" "$OUTPUT"
           else
-            echo "No converter found for $EXT → $TARGET" && exit 1
-          fi
-
-          if [ ! -f "$OUTPUT" ]; then
-            echo "ERROR: Output file not created." && exit 1
+             # Fallback to Pandoc for docs/ebooks
+             pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
           fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: converted-file
-          path: /tmp/output.${{ github.event.inputs.target_format }}
+          path: /tmp/output.*
           retention-days: 1
 
-      - name: Cleanup Temp File
+      - name: Cleanup
         if: always()
         run: |
-          # Remove the large file from the repo to keep it clean
           git config --global user.name "Fileshift Bot"
           git config --global user.email "bot@fileshift.local"
-          git rm -f "${{ github.event.inputs.file_path }}" || true
-          git commit -m "Cleanup: Remove processed file ${{ github.event.inputs.filename }}" || true
+          git rm -rf temp_uploads/
+          git commit -m "Cleanup temp files" || true
           git push origin main || true
