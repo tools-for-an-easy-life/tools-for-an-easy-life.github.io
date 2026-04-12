@@ -46,60 +46,80 @@ jobs:
           done
 
           if [ -f "$FILE_PATH" ]; then
-            # Move and rename to temp processing path
-            mv "$FILE_PATH" "/tmp/input_$SAFE_FILENAME"
+            # Quote paths to handle any remaining special characters
+            mv "$FILE_PATH" "/tmp/input_file"
             echo "File found and prepared."
           else
-            echo "ERROR: File $FILE_PATH not found after 50 seconds."
-            ls -R
+            echo "ERROR: File $FILE_PATH not found."
             exit 1
           fi
 
       - name: Convert File
         run: |
-          INPUT="/tmp/input_${{ github.event.inputs.filename }}"
+          INPUT="/tmp/input_file"
           TARGET="${{ github.event.inputs.target_format }}"
-          OUTPUT="/tmp/output.$TARGET"
-          
-          # Detect Extension
-          EXT="${{ github.event.inputs.filename }}"
-          EXT="${EXT##*.}"
-          EXT=$(echo "$EXT" | tr '[:upper:]' '[:lower:]')
           TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
+          OUTPUT="/tmp/final_result.$TARGET"
+          
+          # Absolute cleanup of the temp directory to prevent ZIP bloat
+          rm -rf /tmp/output* /tmp/final_result*
 
-          echo "Converting $EXT to $TARGET..."
+          echo "Converting to $TARGET..."
 
-          # --- Conversion Logic (Abridged for reliability) ---
-          if [[ "$TARGET" == "pdf" ]]; then
-            if [[ "$EXT" =~ ^(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
+          # --- Optimized Conversion Logic ---
+          if [ "$TARGET" = "epub" ]; then
+            # Specific fixes for PDF-to-EPUB bloat
+            ebook-convert "$INPUT" "$OUTPUT" \
+              --enable-heuristics \
+              --compress-images \
+              --prefer-metadata-cover \
+              --smarten-punctuation
+          
+          elif [ "$TARGET" = "pdf" ]; then
+            # High-compatibility PDF generation
+            if [[ "${{ github.event.inputs.filename }}" =~ \.(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
               libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
               mv /tmp/*.pdf "$OUTPUT"
-            elif [[ "$EXT" =~ ^(png|jpg|jpeg|webp)$ ]]; then
-              convert "$INPUT" "$OUTPUT"
             else
-              pandoc "$INPUT" -o "$OUTPUT" || wkhtmltopdf "$INPUT" "$OUTPUT"
+              pandoc "$INPUT" -o "$OUTPUT" --pdf-engine=pdflatex || convert "$INPUT" "$OUTPUT"
             fi
-          elif [[ "$TARGET" =~ ^(mp4|webm|avi|mp3|wav)$ ]]; then
-             ffmpeg -i "$INPUT" "$OUTPUT" -y
-          elif [[ "$EXT" =~ ^(png|jpg|jpeg|webp)$ ]] && [[ "$TARGET" =~ ^(png|jpg|jpeg|webp)$ ]]; then
-             convert "$INPUT" "$OUTPUT"
+
+          elif [[ "$TARGET" =~ ^(mp4|webm|mp3|wav|ogg)$ ]]; then
+            # Media conversion
+            ffmpeg -i "$INPUT" -map_metadata 0 "$OUTPUT" -y
+
+          elif [[ "$TARGET" =~ ^(jpg|png|webp|gif)$ ]]; then
+            # Image conversion
+            convert "$INPUT" "$OUTPUT"
+
           else
-             # Fallback to Pandoc for docs/ebooks
-             pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
+            # Universal fallback
+            pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
           fi
+
+      - name: Verify and Strip
+        run: |
+          if [ ! -f "$OUTPUT" ]; then
+            echo "ERROR: Output file was not created."
+            exit 1
+          fi
+          echo "Final File Size: $(du -sh "$OUTPUT")"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: converted-file
-          path: /tmp/output.*
+          # This EXACT path prevents the 245MB bloat
+          path: /tmp/final_result.${{ github.event.inputs.target_format }}
+          if-no-files-found: error
           retention-days: 1
 
-      - name: Cleanup
+      - name: Cleanup Repository
         if: always()
         run: |
           git config --global user.name "Fileshift Bot"
           git config --global user.email "bot@fileshift.local"
-          git rm -rf temp_uploads/
-          git commit -m "Cleanup temp files" || true
+          # Wipe the entire temp_uploads folder from the repo
+          git rm -rf temp_uploads/ || true
+          git commit -m "Cleanup: Process complete" || true
           git push origin main || true
