@@ -33,20 +33,17 @@ jobs:
       - name: Prepare Input File
         run: |
           FILE_PATH="${{ github.event.inputs.file_path }}"
-          # Extract the extension from the original filename
           ORIGINAL_NAME="${{ github.event.inputs.filename }}"
           EXT="${ORIGINAL_NAME##*.}"
           
-          # Move file to /tmp and keep the extension so Calibre is happy
+          # Force extension so Calibre/Pandoc know the input type
           mv "$FILE_PATH" "/tmp/input_file.$EXT"
           echo "File prepared as /tmp/input_file.$EXT"
 
       - name: Convert File
         run: |
-          # Get the extension again for the script
           ORIGINAL_NAME="${{ github.event.inputs.filename }}"
           EXT="${ORIGINAL_NAME##*.}"
-          
           INPUT="/tmp/input_file.$EXT"
           TARGET="${{ github.event.inputs.target_format }}"
           TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
@@ -55,10 +52,11 @@ jobs:
           rm -rf /tmp/output* /tmp/final_result*
           echo "Converting $EXT to $TARGET..."
 
+          # --- Optimized Conversion Logic ---
           if [ "$TARGET" = "epub" ]; then
-            ebook-convert "$INPUT" "$OUTPUT" \
-              --enable-heuristics \
-              --compress-images
+            # Removed --compress-images to fix CLI error
+            # --enable-heuristics is standard and safe
+            ebook-convert "$INPUT" "$OUTPUT" --enable-heuristics
           
           elif [ "$TARGET" = "pdf" ]; then
             if [[ "$EXT" =~ ^(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
@@ -71,11 +69,15 @@ jobs:
           elif [[ "$TARGET" =~ ^(mp4|webm|mp3|wav|ogg)$ ]]; then
             ffmpeg -i "$INPUT" -map_metadata 0 "$OUTPUT" -y
 
+          elif [[ "$TARGET" =~ ^(jpg|png|webp|gif)$ ]]; then
+            convert "$INPUT" "$OUTPUT"
+
           else
+            # Universal fallback using Pandoc
             pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
           fi
 
-      - name: Verify and Strip
+      - name: Verify Output
         run: |
           if [ ! -f "$OUTPUT" ]; then
             echo "ERROR: Output file was not created."
@@ -87,7 +89,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: converted-file
-          # This EXACT path prevents the 245MB bloat
           path: /tmp/final_result.${{ github.event.inputs.target_format }}
           if-no-files-found: error
           retention-days: 1
@@ -97,7 +98,6 @@ jobs:
         run: |
           git config --global user.name "Fileshift Bot"
           git config --global user.email "bot@fileshift.local"
-          # Wipe the entire temp_uploads folder from the repo
           git rm -rf temp_uploads/ || true
           git commit -m "Cleanup: Process complete" || true
           git push origin main || true
