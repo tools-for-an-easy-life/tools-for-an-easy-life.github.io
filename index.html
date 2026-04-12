@@ -734,38 +734,53 @@ async function runConvert() {
   document.getElementById('convertBtn').disabled = true;
 
   const steps = [
-    { id:'upload',   label:'Uploading large file to GitHub…' },
-    { id:'trigger',  label:'Triggering GitHub Actions workflow…' },
-    { id:'wait',     label:'Waiting for runner to pick up job…' },
-    { id:'convert',  label:'Converting on GitHub runner…' },
-    { id:'download', label:'Downloading result…' },
+    { id:'upload',   label:'Uploading to GitHub (Required for large files)...' },
+    { id:'trigger',  label:'Triggering GitHub Actions...' },
+    { id:'wait',     label:'Waiting for runner...' },
+    { id:'convert',  label:'Converting...' },
+    { id:'download', label:'Downloading result...' },
   ];
-  renderSteps(steps); showStatus();
+  renderSteps(steps); 
+  showStatus();
   setProg(5);
 
   try {
     const [owner, repo] = CFG.repo.split('/');
-    const tempPath = `temp_uploads/${Date.now()}_${file.name}`;
+    // We clean the filename to prevent API errors with spaces/parentheses
+    const safeName = file.name.replace(/[^a-z0-9.]/gi, '_');
+    const tempPath = `temp_uploads/${Date.now()}_${safeName}`;
 
-    // Step 1: Upload the file to the repo directly (supports large files)
+    // STEP 1: UPLOAD FILE TO REPO
     activateStep('upload');
-    const b64 = await fileToBase64(file);
-    
-    await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
+    const b64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const uploadRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
       method: 'PUT',
       headers: {
         'Authorization': `token ${CFG.token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        message: `Upload file for conversion: ${file.name}`,
+        message: `Upload for conversion: ${file.name}`,
         content: b64,
         branch: 'main'
       })
     });
-    doneStep('upload'); setProg(25);
 
-    // Step 2: Trigger workflow (only send the PATH to the file, not the data)
+    if(!uploadRes.ok) {
+      const errData = await uploadRes.json();
+      throw new Error(`Upload failed: ${errData.message || uploadRes.statusText}`);
+    }
+    
+    doneStep('upload');
+    setProg(25);
+
+    // STEP 2: TRIGGER WORKFLOW
     activateStep('trigger');
     const triggerRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
       method: 'POST',
@@ -776,32 +791,37 @@ async function runConvert() {
       body: JSON.stringify({
         ref: 'main',
         inputs: {
-          file_path: tempPath, // We send the path instead of the huge base64 string
+          file_path: tempPath,
           filename: file.name,
           target_format: toFmt
         }
       })
     });
 
-    if(!triggerRes.ok) throw new Error("Trigger failed");
-    doneStep('trigger'); setProg(40);
-
-    // ... (Keep your existing pollForRun, waitForRun, and downloadArtifact logic here) ...
-    // Note: Ensure your waitForRun logic stays the same as before
+    if(!triggerRes.ok) throw new Error("Trigger failed. Check if convert.yml exists in the root .github/workflows/ folder.");
     
+    doneStep('trigger');
+    setProg(40);
+
+    // STEP 3: POLL FOR RUN ID
     activateStep('wait');
     const runId = await pollForRun(owner, repo, 60);
-    doneStep('wait'); setProg(55);
+    doneStep('wait');
+    setProg(55);
 
+    // STEP 4: WAIT FOR COMPLETION
     activateStep('convert');
-    await waitForRun(owner, repo, runId, 600); // Increased timeout for 1GB files
-    doneStep('convert'); setProg(85);
+    // For 1GB files, we wait up to 20 minutes (1200 seconds)
+    await waitForRun(owner, repo, runId, 1200); 
+    doneStep('convert');
+    setProg(85);
 
+    // STEP 5: DOWNLOAD
     activateStep('download');
     const blob = await downloadArtifact(owner, repo, runId);
-    doneStep('download'); setProg(100);
+    doneStep('download');
+    setProg(100);
 
-    // Success UI
     resultBlob = blob;
     resultName = file.name.replace(/\.[^.]+$/, '') + '.' + toFmt;
     document.getElementById('resName').textContent = resultName;
@@ -810,6 +830,7 @@ async function runConvert() {
   } catch(e) {
     errorStep();
     showErr(e.message);
+    console.error(e);
   } finally {
     document.getElementById('convertBtn').disabled = false;
   }
