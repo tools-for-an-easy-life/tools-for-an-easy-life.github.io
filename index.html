@@ -734,7 +734,7 @@ async function runConvert() {
   document.getElementById('convertBtn').disabled = true;
 
   const steps = [
-    { id:'encode',   label:'Encoding file for upload…' },
+    { id:'upload',   label:'Uploading large file to GitHub…' },
     { id:'trigger',  label:'Triggering GitHub Actions workflow…' },
     { id:'wait',     label:'Waiting for runner to pick up job…' },
     { id:'convert',  label:'Converting on GitHub runner…' },
@@ -744,69 +744,72 @@ async function runConvert() {
   setProg(5);
 
   try {
-    // Step 1: base64 encode
-    activateStep('encode');
-    const b64 = await fileToBase64(file);
-    doneStep('encode'); setProg(15);
-
-    // Step 2: trigger workflow
-    activateStep('trigger');
-    const workflowFile = 'convert.yml';
     const [owner, repo] = CFG.repo.split('/');
+    const tempPath = `temp_uploads/${Date.now()}_${file.name}`;
 
-    const triggerRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`, {
+    // Step 1: Upload the file to the repo directly (supports large files)
+    activateStep('upload');
+    const b64 = await fileToBase64(file);
+    
+    await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${CFG.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: `Upload file for conversion: ${file.name}`,
+        content: b64,
+        branch: 'main'
+      })
+    });
+    doneStep('upload'); setProg(25);
+
+    // Step 2: Trigger workflow (only send the PATH to the file, not the data)
+    activateStep('trigger');
+    const triggerRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
       method: 'POST',
       headers: {
         'Authorization': `token ${CFG.token}`,
         'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         ref: 'main',
         inputs: {
-          file_b64: b64,
+          file_path: tempPath, // We send the path instead of the huge base64 string
           filename: file.name,
-          target_format: toFmt,
-          options: '{}',
+          target_format: toFmt
         }
       })
     });
 
-    if(!triggerRes.ok) {
-      const err = await triggerRes.json().catch(()=>({}));
-      throw new Error(`GitHub API error ${triggerRes.status}: ${err.message || triggerRes.statusText}`);
-    }
-    doneStep('trigger'); setProg(30);
+    if(!triggerRes.ok) throw new Error("Trigger failed");
+    doneStep('trigger'); setProg(40);
 
-    // Step 3: wait for run to appear
+    // ... (Keep your existing pollForRun, waitForRun, and downloadArtifact logic here) ...
+    // Note: Ensure your waitForRun logic stays the same as before
+    
     activateStep('wait');
-    await sleep(4000); // Give GitHub a moment to register the run
     const runId = await pollForRun(owner, repo, 60);
-    doneStep('wait'); setProg(50);
+    doneStep('wait'); setProg(55);
 
-    // Step 4: wait for run to complete
     activateStep('convert');
-    await waitForRun(owner, repo, runId, 300);
-    doneStep('convert'); setProg(80);
+    await waitForRun(owner, repo, runId, 600); // Increased timeout for 1GB files
+    doneStep('convert'); setProg(85);
 
-    // Step 5: download artifact
     activateStep('download');
     const blob = await downloadArtifact(owner, repo, runId);
     doneStep('download'); setProg(100);
 
-    // Show result
+    // Success UI
     resultBlob = blob;
     resultName = file.name.replace(/\.[^.]+$/, '') + '.' + toFmt;
     document.getElementById('resName').textContent = resultName;
-    document.getElementById('resMeta').textContent = fmtBytes(blob.size) + ' · converted via GitHub Actions';
-    document.getElementById('dlBtn').onclick = () => downloadBlob(blob, resultName);
-    document.getElementById('saveBtn').onclick = () => saveToLibrary(blob, resultName);
     document.getElementById('resultCard').classList.add('show');
-    setTimeout(() => document.getElementById('statusBox').classList.remove('show'), 1000);
 
   } catch(e) {
     errorStep();
-    showErr(e.message || 'Something went wrong.');
+    showErr(e.message);
   } finally {
     document.getElementById('convertBtn').disabled = false;
   }
