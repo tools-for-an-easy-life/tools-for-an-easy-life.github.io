@@ -1,31 +1,29 @@
-name: Convert File
+name: Fixed EPUB Converter
 
 on:
   workflow_dispatch:
     inputs:
       file_path:
-        description: 'Path to the uploaded file'
+        description: 'Path'
         required: true
       filename:
-        description: 'Original name'
+        description: 'Name'
         required: true
       target_format:
-        description: 'Target format'
+        description: 'Target'
         required: true
 
 jobs:
   convert:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Install Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq pandoc calibre libreoffice ffmpeg imagemagick
+          sudo apt-get install -y -qq calibre pandoc
 
       - name: Prepare Input
         run: |
@@ -33,43 +31,29 @@ jobs:
           EXT="${EXT##*.}"
           mv "${{ github.event.inputs.file_path }}" "/tmp/input_file.$EXT"
 
-      - name: Convert File
+      - name: Convert to Readable EPUB
         run: |
-          EXT="${{ github.event.inputs.filename }}"
-          EXT="${EXT##*.}"
-          INPUT="/tmp/input_file.$EXT"
-          TARGET="${{ github.event.inputs.target_format }}"
-          OUTPUT="/tmp/final_result.$TARGET"
+          INPUT="/tmp/input_file.pdf"
+          OUTPUT="/tmp/final_result.epub"
           
-          echo "Processing $EXT to $TARGET..."
+          echo "Starting Clean Conversion..."
 
-          if [ "$TARGET" = "epub" ] && [ "$EXT" = "pdf" ]; then
-            # Try Pandoc first (Fast)
-            pandoc "$INPUT" -o "$OUTPUT" || \
-            # Fallback to Calibre (Thorough)
-            ebook-convert "$INPUT" "$OUTPUT" --enable-heuristics --no-default-epub-cover
+          # EXPLANATION OF FLAGS:
+          # --enable-heuristics: Fixes line breaks mid-sentence (common in PDFs)
+          # --docx-no-cover: Prevents doubling up the cover page
+          # --epub-flatten: Makes the structure readable by all e-readers
+          # --input-profile: 'default' prevents it from forcing a specific screen size
           
-          elif [ "$TARGET" = "pdf" ]; then
-            libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT" || pandoc "$INPUT" -o "$OUTPUT"
-            [ -f /tmp/*.pdf ] && mv /tmp/*.pdf "$OUTPUT"
-          
-          else
-            # Universal Fallback
-            pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT" || ffmpeg -i "$INPUT" "$OUTPUT" -y
-          fi
+          ebook-convert "$INPUT" "$OUTPUT" \
+            --enable-heuristics \
+            --input-profile default \
+            --output-profile generic_eink \
+            --epub-flatten \
+            --pretty-print \
+            --smarten-punctuation
 
-      - name: Upload Artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: converted-file
-          path: /tmp/final_result.${{ github.event.inputs.target_format }}
-          retention-days: 1
-
-      - name: Cleanup
-        if: always()
-        run: |
-          git config --global user.name "Bot"
-          git config --global user.email "bot@bot.com"
-          git rm -rf temp_uploads/ || true
-          git commit -m "Clean" || true
-          git push origin main || true
+          name: fixed-epub
+          path: /tmp/final_result.epub
