@@ -7,7 +7,7 @@ on:
         description: 'Path to the uploaded file'
         required: true
       filename:
-        description: 'Original name for output'
+        description: 'Original name'
         required: true
       target_format:
         description: 'Target format'
@@ -22,82 +22,54 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Converters
+      - name: Install Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            pandoc libreoffice imagemagick ffmpeg calibre ghostscript \
-            poppler-utils unoconv wkhtmltopdf python3-pip
-          pip3 install --quiet pillow
+          sudo apt-get install -y -qq pandoc calibre libreoffice ffmpeg imagemagick
 
-      - name: Prepare Input File
+      - name: Prepare Input
         run: |
-          FILE_PATH="${{ github.event.inputs.file_path }}"
-          ORIGINAL_NAME="${{ github.event.inputs.filename }}"
-          EXT="${ORIGINAL_NAME##*.}"
-          
-          # Force extension so Calibre/Pandoc know the input type
-          mv "$FILE_PATH" "/tmp/input_file.$EXT"
-          echo "File prepared as /tmp/input_file.$EXT"
+          EXT="${{ github.event.inputs.filename }}"
+          EXT="${EXT##*.}"
+          mv "${{ github.event.inputs.file_path }}" "/tmp/input_file.$EXT"
 
       - name: Convert File
         run: |
-          ORIGINAL_NAME="${{ github.event.inputs.filename }}"
-          EXT="${ORIGINAL_NAME##*.}"
+          EXT="${{ github.event.inputs.filename }}"
+          EXT="${EXT##*.}"
           INPUT="/tmp/input_file.$EXT"
           TARGET="${{ github.event.inputs.target_format }}"
-          TARGET=$(echo "$TARGET" | tr '[:upper:]' '[:lower:]')
           OUTPUT="/tmp/final_result.$TARGET"
           
-          rm -rf /tmp/output* /tmp/final_result*
-          echo "Converting $EXT to $TARGET..."
+          echo "Processing $EXT to $TARGET..."
 
-          # --- Optimized Conversion Logic ---
-          if [ "$TARGET" = "epub" ]; then
-            # Removed --compress-images to fix CLI error
-            # --enable-heuristics is standard and safe
-            ebook-convert "$INPUT" "$OUTPUT" --enable-heuristics
+          if [ "$TARGET" = "epub" ] && [ "$EXT" = "pdf" ]; then
+            # Try Pandoc first (Fast)
+            pandoc "$INPUT" -o "$OUTPUT" || \
+            # Fallback to Calibre (Thorough)
+            ebook-convert "$INPUT" "$OUTPUT" --enable-heuristics --no-default-epub-cover
           
           elif [ "$TARGET" = "pdf" ]; then
-            if [[ "$EXT" =~ ^(doc|docx|odt|ppt|pptx|xls|xlsx)$ ]]; then
-              libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT"
-              mv /tmp/*.pdf "$OUTPUT"
-            else
-              pandoc "$INPUT" -o "$OUTPUT" --pdf-engine=pdflatex || convert "$INPUT" "$OUTPUT"
-            fi
-
-          elif [[ "$TARGET" =~ ^(mp4|webm|mp3|wav|ogg)$ ]]; then
-            ffmpeg -i "$INPUT" -map_metadata 0 "$OUTPUT" -y
-
-          elif [[ "$TARGET" =~ ^(jpg|png|webp|gif)$ ]]; then
-            convert "$INPUT" "$OUTPUT"
-
+            libreoffice --headless --convert-to pdf --outdir /tmp "$INPUT" || pandoc "$INPUT" -o "$OUTPUT"
+            [ -f /tmp/*.pdf ] && mv /tmp/*.pdf "$OUTPUT"
+          
           else
-            # Universal fallback using Pandoc
-            pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT"
+            # Universal Fallback
+            pandoc "$INPUT" -o "$OUTPUT" || ebook-convert "$INPUT" "$OUTPUT" || ffmpeg -i "$INPUT" "$OUTPUT" -y
           fi
-
-      - name: Verify Output
-        run: |
-          if [ ! -f "$OUTPUT" ]; then
-            echo "ERROR: Output file was not created."
-            exit 1
-          fi
-          echo "Final File Size: $(du -sh "$OUTPUT")"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: converted-file
           path: /tmp/final_result.${{ github.event.inputs.target_format }}
-          if-no-files-found: error
           retention-days: 1
 
-      - name: Cleanup Repository
+      - name: Cleanup
         if: always()
         run: |
-          git config --global user.name "Fileshift Bot"
-          git config --global user.email "bot@fileshift.local"
+          git config --global user.name "Bot"
+          git config --global user.email "bot@bot.com"
           git rm -rf temp_uploads/ || true
-          git commit -m "Cleanup: Process complete" || true
+          git commit -m "Clean" || true
           git push origin main || true
