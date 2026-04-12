@@ -727,18 +727,18 @@ function selectFmt(fmt, btn) {
 document.getElementById('convertBtn').addEventListener('click', runConvert);
 
 async function runConvert() {
-  if(!CFG.token || !CFG.repo) { openSettings(); showErr('Configure your GitHub token and repo first.'); return; }
+  if(!CFG.token || !CFG.repo) { openSettings(); showErr('Check settings.'); return; }
   if(!file || !toFmt) return;
 
   clearResult();
   document.getElementById('convertBtn').disabled = true;
 
   const steps = [
-    { id:'upload',   label:'Uploading to GitHub Storage...' },
-    { id:'trigger',  label:'Syncing & Triggering Action...' },
-    { id:'wait',     label:'Waiting for runner...' },
+    { id:'upload',   label:'Uploading to GitHub...' },
+    { id:'trigger',  label:'Waiting for Indexing...' },
+    { id:'wait',     label:'Waiting for Runner...' },
     { id:'convert',  label:'Converting...' },
-    { id:'download', label:'Downloading result...' },
+    { id:'download', label:'Downloading...' },
   ];
   renderSteps(steps); 
   showStatus();
@@ -747,11 +747,11 @@ async function runConvert() {
   try {
     const [owner, repo] = CFG.repo.split('/');
     
-    // FIX 1: Sanitize filename. Parentheses and quotes break shell scripts.
-    const safeBaseName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_');
+    // SANITIZE: Use a generic name for the storage path to avoid Shell errors
+    const timestamp = Date.now();
     const extension = file.name.split('.').pop();
-    const safeName = `${safeBaseName}.${extension}`;
-    const tempPath = `temp_uploads/${Date.now()}_${safeName}`;
+    const storageName = `file_${timestamp}.${extension}`;
+    const tempPath = `temp_uploads/${storageName}`;
 
     // STEP 1: UPLOAD
     activateStep('upload');
@@ -761,57 +761,55 @@ async function runConvert() {
       reader.readAsDataURL(file);
     });
 
-    const uploadRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
+    const up = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${tempPath}`, {
       method: 'PUT',
-      headers: { 'Authorization': `token ${CFG.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: `Upload: ${safeName}`, content: b64, branch: 'main' })
+      headers: { 'Authorization': `token ${CFG.token}` },
+      body: JSON.stringify({ message: 'upload', content: b64, branch: 'main' })
     });
-
-    if(!uploadRes.ok) throw new Error("Upload failed. Check token permissions.");
+    if(!up.ok) throw new Error("Upload failed. Check token/repo.");
     doneStep('upload');
     setProg(20);
 
-    // FIX 2: Wait 10 seconds. GitHub API needs time to index the new file.
+    // STEP 2: TRIGGER (Wait 10s first)
     activateStep('trigger');
-    console.log("Waiting 10s for GitHub to index the file...");
     await new Promise(r => setTimeout(r, 10000)); 
-
-    // STEP 2: TRIGGER
-    const triggerRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
+    
+    const trigger = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/convert.yml/dispatches`, {
       method: 'POST',
       headers: { 'Authorization': `token ${CFG.token}`, 'Accept': 'application/vnd.github.v3+json' },
       body: JSON.stringify({
         ref: 'main',
         inputs: {
           file_path: tempPath,
-          filename: safeName, // Passing the cleaned name
+          filename: file.name, // The runner uses this for the actual conversion name
           target_format: toFmt
         }
       })
     });
-
-    if(!triggerRes.ok) throw new Error("Trigger failed. Verify convert.yml is in .github/workflows/");
+    if(!trigger.ok) throw new Error("Trigger failed.");
     doneStep('trigger');
     setProg(40);
 
-    // STEP 3, 4, 5 (Polling and Downloading)
+    // STEP 3: POLL
     activateStep('wait');
     const runId = await pollForRun(owner, repo, 60);
     doneStep('wait');
-    setProg(55);
+    setProg(60);
 
+    // STEP 4: CONVERT
     activateStep('convert');
-    await waitForRun(owner, repo, runId, 1200); 
+    await waitForRun(owner, repo, runId, 1200);
     doneStep('convert');
     setProg(85);
 
+    // STEP 5: DOWNLOAD
     activateStep('download');
     const blob = await downloadArtifact(owner, repo, runId);
     doneStep('download');
     setProg(100);
 
     resultBlob = blob;
-    resultName = safeBaseName + '.' + toFmt;
+    resultName = file.name.replace(/\.[^.]+$/, '') + '.' + toFmt;
     document.getElementById('resName').textContent = resultName;
     document.getElementById('resultCard').classList.add('show');
 
@@ -823,51 +821,59 @@ async function runConvert() {
   }
 }
 
+// Helper: Poll for the new Run ID
 async function pollForRun(owner, repo, timeoutSec) {
   const start = Date.now();
-  while((Date.now()-start) < timeoutSec*1000) {
-    await sleep(3000);
-    const res = await ghFetch(`/repos/${owner}/${repo}/actions/runs?per_page=5&event=workflow_dispatch`);
-    const runs = res.workflow_runs || [];
-    const recent = runs.find(r => {
-      const created = new Date(r.created_at).getTime();
-      return Date.now() - created < 120000; // within last 2 min
+  while(Date.now() - start < timeoutSec * 1000) {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?event=workflow_dispatch`, {
+      headers: { 'Authorization': `token ${CFG.token}` }
     });
-    if(recent) return recent.id;
+    const data = await res.json();
+    if(data.workflow_runs && data.workflow_runs.length > 0) {
+      const latest = data.workflow_runs[0];
+      // Ensure the run is newer than our request
+      if(new Date(latest.created_at) > new Date(start - 10000)) return latest.id;
+    }
+    await new Promise(r => setTimeout(r, 3000));
   }
-  throw new Error('Timed out waiting for GitHub Actions run to start. Check your repo settings.');
+  throw new Error("Timeout waiting for GitHub to start the job.");
 }
 
+// Helper: Wait for completion
 async function waitForRun(owner, repo, runId, timeoutSec) {
   const start = Date.now();
-  while((Date.now()-start) < timeoutSec*1000) {
-    await sleep(5000);
-    const run = await ghFetch(`/repos/${owner}/${repo}/actions/runs/${runId}`);
-    if(run.status === 'completed') {
-      if(run.conclusion !== 'success') throw new Error(`Conversion failed. GitHub Actions conclusion: ${run.conclusion}. Check your Actions tab for logs.`);
-      return;
+  while(Date.now() - start < timeoutSec * 1000) {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`, {
+      headers: { 'Authorization': `token ${CFG.token}` }
+    });
+    const data = await res.json();
+    if(data.status === 'completed') {
+      if(data.conclusion !== 'success') throw new Error("Conversion failed on GitHub.");
+      return true;
     }
+    await new Promise(r => setTimeout(r, 5000));
   }
-  throw new Error('Conversion timed out (5 min). File may be too large or format unsupported.');
+  throw new Error("Conversion timed out.");
 }
 
+// Helper: Download Zip Artifact and extract the file
 async function downloadArtifact(owner, repo, runId) {
-  // Get artifact list
-  const res = await ghFetch(`/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`);
-  const artifact = res.artifacts?.[0];
-  if(!artifact) throw new Error('No output artifact found. Conversion may have failed silently.');
-
-  // Download ZIP (GitHub wraps artifact in a zip)
-  const dlRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${artifact.id}/zip`, {
-    headers: { 'Authorization': `token ${CFG.token}`, 'Accept': 'application/vnd.github.v3+json' }
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`, {
+    headers: { 'Authorization': `token ${CFG.token}` }
   });
-  if(!dlRes.ok) throw new Error(`Failed to download artifact: ${dlRes.status}`);
-
-  const zipBlob = await dlRes.blob();
+  const data = await res.json();
+  if(!data.artifacts || data.artifacts.length === 0) throw new Error("No output file found.");
+  
+  const artRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/artifacts/${data.artifacts[0].id}/zip`, {
+    headers: { 'Authorization': `token ${CFG.token}` }
+  });
+  const zipBlob = await artRes.blob();
+  
+  // Extract from ZIP using JSZip
   const zip = await JSZip.loadAsync(zipBlob);
-  const firstFile = Object.values(zip.files).find(f => !f.dir);
-  if(!firstFile) throw new Error('Artifact ZIP is empty.');
-  return await firstFile.async('blob');
+  const files = Object.keys(zip.files);
+  const output = await zip.files[files[0]].async("blob");
+  return output;
 }
 
 async function ghFetch(path) {
