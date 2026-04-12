@@ -40,12 +40,21 @@ jobs:
 
       - name: Prepare Input File
         run: |
-          # Move the file from the repo storage to the /tmp workspace for processing
+          # Wait up to 30 seconds for the file to actually appear in the checkout
+          MAX_RETRIES=6
+          COUNT=0
+          while [ ! -f "${{ github.event.inputs.file_path }}" ] && [ $COUNT -lt $MAX_RETRIES ]; do
+            echo "File not indexed yet, waiting 5s..."
+            sleep 5
+            git pull origin main # Force sync
+            COUNT=$((COUNT+1))
+          done
+
           if [ -f "${{ github.event.inputs.file_path }}" ]; then
             mv "${{ github.event.inputs.file_path }}" "/tmp/input_${{ github.event.inputs.filename }}"
-            echo "File prepared for conversion."
+            echo "File prepared."
           else
-            echo "ERROR: File not found at ${{ github.event.inputs.file_path }}"
+            echo "ERROR: File still not found after 30s at ${{ github.event.inputs.file_path }}"
             exit 1
           fi
 
