@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NoteFlow — Smart Study Companion</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Tesseract.js — free in-browser OCR, no API needed -->
+<script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 <style>
   :root {
     --bg: #0c0c0f;
@@ -23,1148 +25,644 @@
     --success: #6af7a2;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Bricolage Grotesque', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Grain overlay */
+  body { background: var(--bg); color: var(--text); font-family: 'Bricolage Grotesque', sans-serif; min-height: 100vh; overflow-x: hidden; }
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.4;
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1000; opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
   }
 
-  /* Header */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 40px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    backdrop-filter: blur(20px);
-  }
+  /* ── Header ── */
+  header { display:flex; align-items:center; justify-content:space-between; padding:18px 36px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:100; }
+  .logo { font-family:'Instrument Serif',serif; font-size:1.6rem; letter-spacing:-0.02em; }
+  .logo span { color:var(--accent); }
+  .badges { display:flex; gap:8px; }
+  .badge { font-family:'DM Mono',monospace; font-size:0.68rem; padding:4px 10px; border-radius:20px; border:1px solid; letter-spacing:0.05em; }
+  .badge-green { color:var(--accent3); border-color:rgba(106,247,196,0.3); background:rgba(106,247,196,0.07); }
+  .badge-dim { color:var(--text-dimmer); border-color:var(--border); }
 
-  .logo {
-    font-family: 'Instrument Serif', serif;
-    font-size: 1.6rem;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-  .logo span { color: var(--accent); }
+  /* ── Setup ── */
+  #setup-screen { max-width:560px; margin:56px auto 80px; padding:0 24px; }
+  .setup-hero { text-align:center; margin-bottom:36px; }
+  .setup-hero h2 { font-family:'Instrument Serif',serif; font-size:2.4rem; margin-bottom:10px; letter-spacing:-0.02em; }
+  .setup-hero p { color:var(--text-dim); line-height:1.7; font-size:0.9rem; }
+  .setup-cards { display:flex; flex-direction:column; gap:14px; margin-bottom:28px; }
+  .setup-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; display:flex; gap:14px; align-items:flex-start; }
+  .sc-icon { font-size:1.5rem; flex-shrink:0; margin-top:2px; }
+  .setup-card h4 { font-size:0.93rem; font-weight:600; margin-bottom:4px; }
+  .setup-card p { font-size:0.82rem; color:var(--text-dim); line-height:1.55; }
+  .setup-card a { color:var(--accent3); text-decoration:none; }
+  .setup-card a:hover { text-decoration:underline; }
+  .info-box { background:rgba(106,247,196,0.07); border:1px solid rgba(106,247,196,0.2); border-radius:12px; padding:12px 16px; font-size:0.82rem; color:var(--accent3); line-height:1.6; margin-bottom:20px; }
 
-  .header-badge {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.7rem;
-    color: var(--text-dimmer);
-    border: 1px solid var(--border);
-    padding: 4px 10px;
-    border-radius: 20px;
-    letter-spacing: 0.05em;
-  }
+  /* ── App ── */
+  #app { display:none; max-width:1200px; margin:0 auto; padding:36px 24px 80px; }
+  .tabs { display:flex; gap:4px; margin-bottom:32px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:6px; width:fit-content; }
+  .tab { padding:10px 22px; border-radius:10px; border:none; background:transparent; color:var(--text-dim); font-family:'Bricolage Grotesque',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
+  .tab:hover { color:var(--text); background:var(--surface2); }
+  .tab.active { background:var(--accent); color:#fff; font-weight:600; }
+  .panel { display:none; }
+  .panel.active { display:block; }
 
-  /* API Key setup */
-  #api-setup {
-    max-width: 560px;
-    margin: 80px auto;
-    padding: 40px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    text-align: center;
-  }
-  #api-setup h2 {
-    font-family: 'Instrument Serif', serif;
-    font-size: 2rem;
-    margin-bottom: 12px;
-  }
-  #api-setup p { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 28px; line-height: 1.6; }
+  /* ── Upload ── */
+  .upload-zone { border:2px dashed var(--border); border-radius:20px; padding:56px 40px; text-align:center; background:var(--surface); transition:all 0.3s; cursor:pointer; position:relative; overflow:hidden; }
+  .upload-zone::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07) 0%,transparent 70%); pointer-events:none; }
+  .upload-zone:hover, .upload-zone.dragover { border-color:var(--accent); background:var(--surface2); }
+  .upload-icon { font-size:3rem; margin-bottom:14px; display:block; }
+  .upload-zone h3 { font-family:'Instrument Serif',serif; font-size:1.45rem; margin-bottom:8px; }
+  .upload-zone p { color:var(--text-dim); font-size:0.87rem; }
+  #file-input { display:none; }
 
-  /* Main layout */
-  #app {
-    display: none;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
-  }
+  .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px; margin-top:20px; }
+  .thumb { position:relative; border-radius:12px; overflow:hidden; border:2px solid var(--border); aspect-ratio:3/4; background:var(--surface2); }
+  .thumb img { width:100%; height:100%; object-fit:cover; }
+  .thumb .rm { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.75); border:none; color:#fff; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:0.72rem; display:flex; align-items:center; justify-content:center; }
+  .thumb-st { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.72); padding:5px 8px; font-size:0.68rem; font-family:'DM Mono',monospace; color:var(--accent3); text-align:center; }
 
-  /* Tabs */
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 36px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 6px;
-    width: fit-content;
-  }
-  .tab {
-    padding: 10px 22px;
-    border-radius: 10px;
-    border: none;
-    background: transparent;
-    color: var(--text-dim);
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-size: 0.88rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .tab:hover { color: var(--text); background: var(--surface2); }
-  .tab.active {
-    background: var(--accent);
-    color: #fff;
-    font-weight: 600;
-  }
+  /* ── OCR progress ── */
+  .ocr-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px; margin-top:20px; }
+  .ocr-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .ocr-row:last-child { border-bottom:none; }
+  .ocr-name { flex:1; font-size:0.82rem; color:var(--text-dim); font-family:'DM Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ocr-bar-wrap { width:110px; background:var(--surface3); border-radius:4px; height:5px; overflow:hidden; }
+  .ocr-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.25s; }
+  .ocr-st { font-size:0.72rem; font-family:'DM Mono',monospace; min-width:56px; text-align:right; }
+  .ocr-st.done { color:var(--success); }
+  .ocr-st.working { color:var(--accent); }
+  .ocr-st.pending { color:var(--text-dimmer); }
 
-  /* Panels */
-  .panel { display: none; }
-  .panel.active { display: block; }
+  .raw-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; font-family:'DM Mono',monospace; font-size:0.78rem; line-height:1.7; color:var(--text-dim); max-height:160px; overflow-y:auto; white-space:pre-wrap; margin-top:14px; }
 
-  /* Upload zone */
-  .upload-zone {
-    border: 2px dashed var(--border);
-    border-radius: 20px;
-    padding: 60px 40px;
-    text-align: center;
-    background: var(--surface);
-    transition: all 0.3s;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-  }
-  .upload-zone::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at 50% 0%, rgba(124,106,247,0.06) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .upload-zone:hover, .upload-zone.dragover {
-    border-color: var(--accent);
-    background: var(--surface2);
-  }
-  .upload-icon {
-    font-size: 3rem;
-    margin-bottom: 16px;
-    display: block;
-  }
-  .upload-zone h3 {
-    font-family: 'Instrument Serif', serif;
-    font-size: 1.5rem;
-    margin-bottom: 8px;
-  }
-  .upload-zone p { color: var(--text-dim); font-size: 0.88rem; }
-  #file-input { display: none; }
+  /* ── Buttons ── */
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:11px; border:none; font-family:'Bricolage Grotesque',sans-serif; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:#6a57e0; transform:translateY(-1px); }
+  .btn-primary:disabled { opacity:0.38; cursor:not-allowed; transform:none; }
+  .btn-warm { background:var(--accent2); color:#1a0f00; }
+  .btn-warm:hover { background:#e8924e; transform:translateY(-1px); }
+  .btn-warm:disabled { opacity:0.38; cursor:not-allowed; transform:none; }
+  .btn-ghost { background:var(--surface2); color:var(--text-dim); border:1px solid var(--border); }
+  .btn-ghost:hover { background:var(--surface3); color:var(--text); }
+  .btn-sm { padding:7px 14px; font-size:0.8rem; border-radius:8px; }
 
-  /* Thumbnails */
-  .thumbnails {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-    margin-top: 24px;
-  }
-  .thumb {
-    position: relative;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 2px solid var(--border);
-    aspect-ratio: 3/4;
-    background: var(--surface2);
-  }
-  .thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .thumb .remove-thumb {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: rgba(0,0,0,0.7);
-    border: none;
-    color: #fff;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  /* ── Inputs ── */
+  input[type="text"],input[type="date"],input[type="password"],textarea,select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px 15px; color:var(--text); font-family:'Bricolage Grotesque',sans-serif; font-size:0.9rem; outline:none; transition:border-color 0.2s; }
+  input:focus,textarea:focus { border-color:var(--accent); }
+  label { display:block; font-size:0.78rem; color:var(--text-dim); margin-bottom:6px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; font-family:'DM Mono',monospace; }
+  .field { margin-bottom:18px; }
+  textarea { resize:vertical; min-height:100px; }
 
-  /* Buttons */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 12px;
-    border: none;
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #6a57e0; transform: translateY(-1px); }
-  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-  .btn-ghost {
-    background: var(--surface2);
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-  }
-  .btn-ghost:hover { background: var(--surface3); color: var(--text); }
-  .btn-sm { padding: 8px 16px; font-size: 0.82rem; border-radius: 8px; }
+  /* ── Results ── */
+  .results-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:28px; }
+  @media(max-width:768px){ .results-grid { grid-template-columns:1fr; } }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:26px; }
+  .card-full { grid-column:1/-1; }
+  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .card-title { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--text-dimmer); text-transform:uppercase; letter-spacing:0.1em; display:flex; align-items:center; gap:8px; }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .dot-o { background:var(--accent2) !important; }
+  .dot-g { background:var(--accent3) !important; }
 
-  /* Input styles */
-  input[type="text"], input[type="date"], input[type="password"], textarea, select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    color: var(--text);
-    font-family: 'Bricolage Grotesque', sans-serif;
-    font-size: 0.9rem;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
-  label {
-    display: block;
-    font-size: 0.82rem;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-family: 'DM Mono', monospace;
-  }
-  .field { margin-bottom: 20px; }
+  .trans-text { font-size:0.91rem; line-height:1.8; color:var(--text); white-space:pre-wrap; max-height:380px; overflow-y:auto; padding-right:6px; }
+  .trans-text::-webkit-scrollbar { width:3px; }
+  .trans-text::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:2px; }
 
-  /* Results layout */
-  .results-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-top: 32px;
-  }
-  @media (max-width: 768px) { .results-grid { grid-template-columns: 1fr; } }
+  .lp-list { list-style:none; }
+  .lp-item { display:flex; gap:11px; padding:11px 0; border-bottom:1px solid var(--border); font-size:0.87rem; line-height:1.6; align-items:flex-start; }
+  .lp-item:last-child { border-bottom:none; }
+  .lp-n { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--accent); background:rgba(124,106,247,0.12); border-radius:6px; padding:2px 6px; min-width:26px; text-align:center; margin-top:2px; }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px;
-  }
-  .card-full { grid-column: 1 / -1; }
+  .fact { background:var(--surface2); border-radius:11px; padding:13px 15px; margin-bottom:9px; border-left:3px solid var(--border); font-size:0.87rem; line-height:1.6; }
+  .fact.correct { border-left-color:var(--success); }
+  .fact.incorrect { border-left-color:var(--danger); }
+  .fact.uncertain { border-left-color:var(--accent2); }
+  .fact-lbl { font-family:'DM Mono',monospace; font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; font-weight:600; }
+  .fact.correct .fact-lbl { color:var(--success); }
+  .fact.incorrect .fact-lbl { color:var(--danger); }
+  .fact.uncertain .fact-lbl { color:var(--accent2); }
+  .fact-fix { margin-top:7px; padding-top:7px; border-top:1px solid var(--border); color:var(--text-dim); font-size:0.83rem; }
 
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-  }
-  .card-title {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem;
-    color: var(--text-dimmer);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .card-title .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-  .dot-orange { background: var(--accent2) !important; }
-  .dot-green { background: var(--accent3) !important; }
-  .dot-red { background: var(--danger) !important; }
+  /* ── Plan ── */
+  .plan-setup { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:28px; margin-bottom:24px; }
+  .plan-form { display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:end; }
+  @media(max-width:640px){ .plan-form { grid-template-columns:1fr; } }
+  .plan-day { display:grid; grid-template-columns:72px 1fr; }
+  .day-marker { display:flex; flex-direction:column; align-items:center; padding-right:20px; }
+  .day-dot { width:13px; height:13px; border-radius:50%; background:var(--accent); border:3px solid var(--bg); box-shadow:0 0 0 1px var(--accent); flex-shrink:0; margin-top:4px; }
+  .day-line { width:2px; background:var(--border); flex:1; margin-top:5px; margin-bottom:-2px; min-height:20px; }
+  .day-content { background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:18px; margin-bottom:14px; }
+  .day-lbl { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px; }
+  .day-title { font-weight:600; margin-bottom:9px; font-size:0.97rem; }
+  .day-tasks { list-style:none; }
+  .day-task { display:flex; gap:9px; align-items:flex-start; padding:5px 0; font-size:0.86rem; color:var(--text-dim); border-bottom:1px solid var(--border); }
+  .day-task:last-child { border-bottom:none; }
 
-  /* Transcription output */
-  .transcription-text {
-    font-size: 0.92rem;
-    line-height: 1.8;
-    color: var(--text);
-    white-space: pre-wrap;
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 8px;
-  }
-  .transcription-text::-webkit-scrollbar { width: 4px; }
-  .transcription-text::-webkit-scrollbar-track { background: var(--surface2); border-radius: 2px; }
-  .transcription-text::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
-
-  /* Learning points */
-  .learning-points { list-style: none; }
-  .learning-point {
-    display: flex;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.88rem;
-    line-height: 1.6;
-    align-items: flex-start;
-  }
-  .learning-point:last-child { border-bottom: none; }
-  .lp-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--accent);
-    background: rgba(124,106,247,0.12);
-    border-radius: 6px;
-    padding: 2px 7px;
-    min-width: 28px;
-    text-align: center;
-    margin-top: 2px;
-  }
-
-  /* Fact check */
-  .fact-item {
-    background: var(--surface2);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    border-left: 3px solid var(--border);
-    font-size: 0.88rem;
-    line-height: 1.6;
-  }
-  .fact-item.correct { border-left-color: var(--success); }
-  .fact-item.incorrect { border-left-color: var(--danger); }
-  .fact-item.uncertain { border-left-color: var(--accent2); }
-  .fact-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 5px;
-    font-weight: 600;
-  }
-  .fact-item.correct .fact-label { color: var(--success); }
-  .fact-item.incorrect .fact-label { color: var(--danger); }
-  .fact-item.uncertain .fact-label { color: var(--accent2); }
-  .fact-correction {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    color: var(--text-dim);
-    font-size: 0.84rem;
-  }
-
-  /* Study plan */
-  .plan-setup {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
-    margin-bottom: 28px;
-  }
-  .plan-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; align-items: end; }
-  @media (max-width: 640px) { .plan-form { grid-template-columns: 1fr; } }
-
-  .plan-timeline { position: relative; }
-  .plan-day {
-    display: grid;
-    grid-template-columns: 80px 1fr;
-    gap: 0;
-    margin-bottom: 0;
-  }
-  .day-marker {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-right: 24px;
-  }
-  .day-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 3px solid var(--bg);
-    box-shadow: 0 0 0 1px var(--accent);
-    flex-shrink: 0;
-    margin-top: 4px;
-  }
-  .day-line {
-    width: 2px;
-    background: var(--border);
-    flex: 1;
-    margin-top: 6px;
-    margin-bottom: -2px;
-    min-height: 20px;
-  }
-  .day-content {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  .day-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.72rem;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 6px;
-  }
-  .day-title {
-    font-weight: 600;
-    margin-bottom: 10px;
-    font-size: 1rem;
-  }
-  .day-tasks { list-style: none; }
-  .day-task {
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-    padding: 6px 0;
-    font-size: 0.87rem;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-  }
-  .day-task:last-child { border-bottom: none; }
-  .task-icon { font-size: 0.9rem; min-width: 18px; }
-
-  /* Loading */
-  .loading-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px;
-    gap: 20px;
-  }
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-text {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.82rem;
-    color: var(--text-dimmer);
-    animation: pulse 2s ease-in-out infinite;
-  }
+  /* ── Misc ── */
+  .loading-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:56px; gap:18px; }
+  .spinner { width:38px; height:38px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .loading-text { font-family:'DM Mono',monospace; font-size:0.8rem; color:var(--text-dimmer); animation:pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
 
-  /* Progress steps */
-  .progress-steps {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 32px;
-    flex-wrap: wrap;
-  }
-  .step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 500;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    color: var(--text-dimmer);
-    font-family: 'DM Mono', monospace;
-    transition: all 0.3s;
-  }
-  .step.done {
-    background: rgba(106,247,162,0.1);
-    border-color: var(--success);
-    color: var(--success);
-  }
-  .step.active {
-    background: rgba(124,106,247,0.15);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .step-icon { font-size: 0.9rem; }
+  .steps { display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; }
+  .step { display:flex; align-items:center; gap:7px; padding:5px 13px; border-radius:20px; font-size:0.76rem; font-weight:500; background:var(--surface); border:1px solid var(--border); color:var(--text-dimmer); font-family:'DM Mono',monospace; transition:all 0.3s; }
+  .step.done { background:rgba(106,247,162,0.1); border-color:var(--success); color:var(--success); }
+  .step.active { background:rgba(124,106,247,0.15); border-color:var(--accent); color:var(--accent); }
 
-  /* Empty states */
-  .empty-state {
-    text-align: center;
-    padding: 50px 20px;
-    color: var(--text-dimmer);
-  }
-  .empty-state .emoji { font-size: 2.5rem; margin-bottom: 12px; display: block; }
-  .empty-state p { font-size: 0.88rem; }
+  .empty { text-align:center; padding:48px 20px; color:var(--text-dimmer); }
+  .empty .em { font-size:2.4rem; margin-bottom:11px; display:block; }
+  .empty p { font-size:0.87rem; }
 
-  /* Toast */
-  #toast {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    background: var(--surface3);
-    border: 1px solid var(--border-bright);
-    border-radius: 12px;
-    padding: 14px 20px;
-    font-size: 0.88rem;
-    z-index: 9999;
-    transform: translateY(80px);
-    opacity: 0;
-    transition: all 0.3s;
-    max-width: 320px;
-  }
-  #toast.show { transform: translateY(0); opacity: 1; }
+  .chip { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:0.73rem; font-family:'DM Mono',monospace; }
+  .chip-p { background:rgba(124,106,247,0.14); color:var(--accent); }
+  .chip-o { background:rgba(247,162,106,0.14); color:var(--accent2); }
+  .chip-g { background:rgba(106,247,196,0.14); color:var(--accent3); }
 
-  /* Glowing accent for upload */
-  .glow-btn {
-    position: relative;
-    overflow: hidden;
-  }
-  .glow-btn::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    border-radius: 14px;
-    z-index: -1;
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .glow-btn:hover::after { opacity: 1; }
+  .actions { display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; }
+  .hint { margin-top:10px; font-size:0.76rem; color:var(--text-dimmer); font-family:'DM Mono',monospace; }
 
-  .section-title {
-    font-family: 'Instrument Serif', serif;
-    font-size: 1.8rem;
-    margin-bottom: 8px;
-    letter-spacing: -0.02em;
-  }
-  .section-sub {
-    color: var(--text-dim);
-    font-size: 0.88rem;
-    margin-bottom: 28px;
-  }
+  #toast { position:fixed; bottom:28px; right:28px; background:var(--surface3); border:1px solid var(--border-bright); border-radius:11px; padding:13px 18px; font-size:0.86rem; z-index:9999; transform:translateY(70px); opacity:0; transition:all 0.3s; max-width:300px; }
+  #toast.show { transform:translateY(0); opacity:1; }
 
-  /* Summary chip */
-  .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-family: 'DM Mono', monospace;
-    font-weight: 500;
-  }
-  .chip-purple { background: rgba(124,106,247,0.15); color: var(--accent); }
-  .chip-orange { background: rgba(247,162,106,0.15); color: var(--accent2); }
-  .chip-green { background: rgba(106,247,196,0.15); color: var(--accent3); }
-
-  .actions-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 24px;
-    flex-wrap: wrap;
-  }
-
-  textarea { resize: vertical; min-height: 120px; }
+  .section-title { font-family:'Instrument Serif',serif; font-size:1.75rem; margin-bottom:7px; letter-spacing:-0.02em; }
+  .section-sub { color:var(--text-dim); font-size:0.87rem; margin-bottom:26px; }
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">Note<span>Flow</span></div>
-  <div class="header-badge">AI Study Companion</div>
+  <div class="badges">
+    <span class="badge badge-green">✦ 100% Free</span>
+    <span class="badge badge-dim">Browser OCR · No image quota</span>
+  </div>
 </header>
 
-<!-- API Setup Screen -->
-<div id="api-setup">
-  <span style="font-size:2.5rem;display:block;margin-bottom:16px">🔑</span>
-  <h2>Connect to Gemini</h2>
-  <p>NoteFlow uses Google's <strong>Gemini API</strong> (free tier) to transcribe your handwritten notes, fact-check them, extract key learning points, and build personalized study plans.</p>
-  <div style="background:rgba(106,247,196,0.08);border:1px solid rgba(106,247,196,0.2);border-radius:12px;padding:14px 16px;margin-bottom:20px;font-size:0.84rem;color:var(--accent3);line-height:1.6">
-    🎉 <strong>100% Free</strong> — Get your free API key at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent3)">aistudio.google.com/apikey</a> — no credit card needed.
+<!-- ── Setup ── -->
+<div id="setup-screen">
+  <div class="setup-hero">
+    <span style="font-size:3rem;display:block;margin-bottom:18px">📝</span>
+    <h2>NoteFlow is free.</h2>
+    <p>Handwriting recognition runs entirely in your browser using Tesseract.js — no image API, no quota limits.<br>You only need a free Groq key for the AI analysis.</p>
   </div>
+
+  <div class="setup-cards">
+    <div class="setup-card">
+      <div class="sc-icon">🔍</div>
+      <div>
+        <h4>In-browser OCR — zero cost</h4>
+        <p>Tesseract.js reads your handwritten photos directly in the browser. No API calls, no limits, works offline.</p>
+      </div>
+    </div>
+    <div class="setup-card">
+      <div class="sc-icon">🧠</div>
+      <div>
+        <h4>Groq AI — free tier</h4>
+        <p>Cleans up OCR text, fact-checks, extracts key points, builds study plans. Get your free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="field">
-    <label>Your Gemini API Key</label>
-    <input type="password" id="api-key-input" placeholder="AIza..." autocomplete="off">
+    <label>Groq API Key (free — starts with gsk_)</label>
+    <input type="password" id="api-key-input" placeholder="gsk_..." autocomplete="off">
   </div>
-  <p style="font-size:0.78rem;color:var(--text-dimmer);margin-bottom:20px">Your key is stored only in this browser session and never sent anywhere except Google's API.</p>
-  <button class="btn btn-primary" onclick="saveKey()" style="width:100%;justify-content:center">
+
+  <div class="info-box">
+    💡 No Groq key yet? You can still use NoteFlow — OCR will transcribe your notes and you can copy the raw text. AI features unlock once you add a key.
+  </div>
+
+  <button class="btn btn-primary" onclick="saveKey(false)" style="width:100%;justify-content:center">
     <span>✦</span> Start NoteFlow
+  </button>
+  <button class="btn btn-ghost" onclick="saveKey(true)" style="width:100%;justify-content:center;margin-top:10px">
+    Use without Groq key (OCR only)
   </button>
 </div>
 
-<!-- Main App -->
+<!-- ── App ── -->
 <div id="app">
-
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('upload')">📄 Upload Notes</button>
-    <button class="tab" onclick="switchTab('results')">✦ Analysis</button>
-    <button class="tab" onclick="switchTab('plan')">📅 Study Plan</button>
+    <button class="tab active" onclick="switchTab('upload',this)">📄 Upload Notes</button>
+    <button class="tab" onclick="switchTab('results',this)">✦ Analysis</button>
+    <button class="tab" onclick="switchTab('plan',this)">📅 Study Plan</button>
   </div>
 
-  <!-- Upload Panel -->
+  <!-- Upload -->
   <div id="tab-upload" class="panel active">
     <div class="section-title">Upload your notes</div>
-    <div class="section-sub">Photos of handwritten notes, scanned pages, or typed documents — all accepted.</div>
+    <div class="section-sub">Photos of handwritten pages. OCR runs in your browser — free, private, no limits.</div>
 
     <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
       <span class="upload-icon">📎</span>
-      <h3>Drop notes here</h3>
-      <p>or click to browse · JPG, PNG, PDF, TXT supported</p>
-      <input type="file" id="file-input" multiple accept="image/*,.txt">
+      <h3>Drop note photos here</h3>
+      <p>or click to browse · JPG, PNG · up to 6 images</p>
+      <input type="file" id="file-input" multiple accept="image/*">
     </div>
 
-    <div class="thumbnails" id="thumbnails"></div>
+    <div class="thumbs" id="thumbs"></div>
 
-    <div style="margin-top: 28px;" id="subject-section">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-        <div class="field" style="margin:0">
-          <label>Subject / Fach</label>
-          <input type="text" id="subject" placeholder="e.g. Biology, Geschichte, Mathe…">
-        </div>
-        <div class="field" style="margin:0">
-          <label>Extra context (optional)</label>
-          <input type="text" id="context" placeholder="e.g. Chapter 4 - Cell Division">
-        </div>
+    <div id="ocr-box" style="display:none" class="ocr-box">
+      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--text-dimmer);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.08em">OCR Progress</div>
+      <div id="ocr-rows"></div>
+      <div id="raw-wrap" style="display:none">
+        <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--text-dimmer);margin:14px 0 5px;text-transform:uppercase;letter-spacing:0.08em">Raw OCR preview</div>
+        <div class="raw-box" id="raw-box"></div>
       </div>
-
-      <button class="btn btn-primary glow-btn" id="analyze-btn" onclick="analyzeNotes()" disabled>
-        <span>⚡</span> Analyze Notes
-      </button>
     </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0 18px">
+      <div class="field" style="margin:0">
+        <label>Subject / Fach</label>
+        <input type="text" id="subject" placeholder="e.g. Biology, Geschichte…">
+      </div>
+      <div class="field" style="margin:0">
+        <label>Extra context (optional)</label>
+        <input type="text" id="context" placeholder="e.g. Chapter 4 – Cell Division">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="ocr-btn" onclick="runOCR()" disabled>🔍 Read Notes (OCR)</button>
+      <button class="btn btn-warm" id="analyze-btn" onclick="analyzeNotes()" disabled>⚡ AI Analysis</button>
+    </div>
+    <div class="hint" id="hint">Step 1: Upload photos → Step 2: Read Notes (OCR) → Step 3: AI Analysis</div>
   </div>
 
-  <!-- Results Panel -->
+  <!-- Results -->
   <div id="tab-results" class="panel">
-    <div id="results-loading" style="display:none">
-      <div class="progress-steps" id="progress-steps">
-        <div class="step active" id="step-1"><span class="step-icon">✍️</span> Transcribing</div>
-        <div class="step" id="step-2"><span class="step-icon">🔍</span> Fact-checking</div>
-        <div class="step" id="step-3"><span class="step-icon">💡</span> Key points</div>
+    <div id="res-loading" style="display:none">
+      <div class="steps">
+        <div class="step active" id="s1">🧹 Cleaning text</div>
+        <div class="step" id="s2">🔍 Fact-checking</div>
+        <div class="step" id="s3">💡 Key points</div>
       </div>
       <div class="loading-wrap">
         <div class="spinner"></div>
-        <div class="loading-text" id="loading-msg">Transcribing your handwriting…</div>
+        <div class="loading-text" id="load-msg">Sending to Groq…</div>
       </div>
     </div>
-
-    <div id="results-empty" class="empty-state">
-      <span class="emoji">🖊️</span>
-      <p>Upload and analyze some notes first to see your results here.</p>
-    </div>
-
-    <div id="results-content" style="display:none">
-      <!-- filled by JS -->
-    </div>
+    <div id="res-empty" class="empty"><span class="em">🖊️</span><p>Upload notes, run OCR, then hit AI Analysis.</p></div>
+    <div id="res-content" style="display:none"></div>
   </div>
 
-  <!-- Study Plan Panel -->
+  <!-- Plan -->
   <div id="tab-plan" class="panel">
     <div class="section-title">Build a study plan</div>
-    <div class="section-sub">Tell us your exam date and we'll build a personalized revision schedule from your notes.</div>
+    <div class="section-sub">Enter your exam date and get a personalized revision schedule.</div>
 
     <div class="plan-setup">
       <div class="plan-form">
-        <div class="field" style="margin:0">
-          <label>Subject / Fach</label>
-          <input type="text" id="plan-subject" placeholder="e.g. Biologie">
-        </div>
-        <div class="field" style="margin:0">
-          <label>Exam / Test Date</label>
-          <input type="date" id="exam-date">
-        </div>
-        <button class="btn btn-primary" onclick="generatePlan()">
-          <span>📅</span> Generate Plan
-        </button>
+        <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="plan-subject" placeholder="e.g. Biologie"></div>
+        <div class="field" style="margin:0"><label>Exam / Test Date</label><input type="date" id="exam-date"></div>
+        <button class="btn btn-primary" onclick="generatePlan()">📅 Generate</button>
       </div>
-      <div style="margin-top:16px">
+      <div style="margin-top:14px">
         <div class="field" style="margin:0">
-          <label>Additional notes / topics to cover (optional)</label>
-          <textarea id="extra-topics" placeholder="e.g. Focus more on mitosis, weak in photosynthesis…" style="min-height:70px"></textarea>
+          <label>Weak areas / extra notes (optional)</label>
+          <textarea id="extra-topics" placeholder="e.g. Weak in photosynthesis, focus on mitosis…" style="min-height:68px"></textarea>
         </div>
       </div>
     </div>
 
-    <div id="plan-loading" style="display:none">
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        <div class="loading-text">Building your personalized plan…</div>
-      </div>
-    </div>
-
-    <div id="plan-empty" class="empty-state">
-      <span class="emoji">📅</span>
-      <p>Fill in your subject and exam date above to get a smart study plan.<br>Works best after analyzing your notes first!</p>
-    </div>
-
+    <div id="plan-loading" style="display:none"><div class="loading-wrap"><div class="spinner"></div><div class="loading-text">Building your plan…</div></div></div>
+    <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in subject and exam date above.</p></div>
     <div id="plan-content" style="display:none"></div>
   </div>
-
 </div>
 
 <div id="toast"></div>
 
 <script>
-  // ─── State ───────────────────────────────────────────────────────────────────
-  let apiKey = '';
-  let uploadedFiles = []; // {file, dataUrl, base64, mediaType}
-  let analysisResult = null;
+// ── State ──────────────────────────────────────────────────────────────────────
+let apiKey = '';
+let files = [];          // {file, dataUrl, name}
+let ocrTexts = {};       // name -> text
+let ocrDone = false;
+let analysisResult = null;
 
-  // ─── Init ─────────────────────────────────────────────────────────────────────
-  window.addEventListener('DOMContentLoaded', () => {
-    const saved = sessionStorage.getItem('nf_key');
-    if (saved) { apiKey = saved; showApp(); }
-    setupDrop();
-    // Set min date for exam
-    document.getElementById('exam-date').min = new Date().toISOString().split('T')[0];
-  });
+// ── Init ───────────────────────────────────────────────────────────────────────
+addEventListener('DOMContentLoaded', () => {
+  const k = sessionStorage.getItem('nf_key');
+  if (k !== null) { apiKey = k; boot(); }
+  setupDrop();
+  document.getElementById('exam-date').min = new Date().toISOString().split('T')[0];
+});
 
-  function saveKey() {
-    const k = document.getElementById('api-key-input').value.trim();
-    if (!k.startsWith('AIza')) { showToast('⚠️ That doesn\'t look like a valid Gemini key (should start with AIza)'); return; }
-    apiKey = k;
-    sessionStorage.setItem('nf_key', k);
-    showApp();
-  }
-
-  function showApp() {
-    document.getElementById('api-setup').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-  }
-
-  // ─── Tabs ─────────────────────────────────────────────────────────────────────
-  function switchTab(name) {
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    event.target.classList.add('active');
-  }
-
-  // ─── File Upload ──────────────────────────────────────────────────────────────
-  document.getElementById('file-input').addEventListener('change', e => {
-    handleFiles([...e.target.files]);
-    e.target.value = '';
-  });
-
-  function setupDrop() {
-    const zone = document.getElementById('drop-zone');
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault();
-      zone.classList.remove('dragover');
-      handleFiles([...e.dataTransfer.files]);
-    });
-  }
-
-  async function handleFiles(files) {
-    for (const file of files) {
-      if (uploadedFiles.length >= 6) { showToast('Max 6 files'); break; }
-      const entry = await readFile(file);
-      uploadedFiles.push(entry);
-      renderThumbnails();
-    }
-    document.getElementById('analyze-btn').disabled = uploadedFiles.length === 0;
-  }
-
-  function readFile(file) {
-    return new Promise((res) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        const base64 = dataUrl.split(',')[1];
-        res({ file, dataUrl, base64, mediaType: file.type, name: file.name, isText: file.type === 'text/plain' });
-      };
-      if (file.type === 'text/plain') reader.readAsDataURL(file);
-      else reader.readAsDataURL(file);
-    });
-  }
-
-  function renderThumbnails() {
-    const container = document.getElementById('thumbnails');
-    container.innerHTML = '';
-    uploadedFiles.forEach((entry, i) => {
-      const div = document.createElement('div');
-      div.className = 'thumb';
-      if (entry.file.type.startsWith('image/')) {
-        div.innerHTML = `<img src="${entry.dataUrl}">`;
-      } else {
-        div.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:12px;text-align:center;font-size:0.75rem;color:var(--text-dim)">📄<br>${entry.name}</div>`;
-      }
-      div.innerHTML += `<button class="remove-thumb" onclick="removeFile(${i})">✕</button>`;
-      container.appendChild(div);
-    });
-  }
-
-  function removeFile(i) {
-    uploadedFiles.splice(i, 1);
-    renderThumbnails();
-    document.getElementById('analyze-btn').disabled = uploadedFiles.length === 0;
-  }
-
-  // ─── Analysis ─────────────────────────────────────────────────────────────────
-  async function analyzeNotes() {
-    if (!uploadedFiles.length) return;
-    const subject = document.getElementById('subject').value.trim() || 'General';
-    const ctx = document.getElementById('context').value.trim();
-
-    // Switch to results tab
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-results').classList.add('active');
-    document.querySelectorAll('.tab')[1].classList.add('active');
-
-    document.getElementById('results-empty').style.display = 'none';
-    document.getElementById('results-content').style.display = 'none';
-    document.getElementById('results-loading').style.display = 'block';
-
-    setStep(1);
-
-    try {
-      // Build Gemini parts
-      const parts = [];
-      for (const entry of uploadedFiles) {
-        if (entry.file.type.startsWith('image/')) {
-          parts.push({ inline_data: { mime_type: entry.mediaType, data: entry.base64 } });
-        } else {
-          const text = decodeURIComponent(escape(atob(entry.base64)));
-          parts.push({ text: `[Uploaded text file: ${entry.name}]\n${text}` });
-        }
-      }
-
-      parts.push({
-        text: `You are analyzing student notes for the subject: "${subject}"${ctx ? ` (context: ${ctx})` : ''}.
-
-Please provide a comprehensive analysis in the following JSON format ONLY (no markdown, no preamble, no backticks):
-
-{
-  "transcription": "Full clean transcription of all notes in plain text, well-structured. Fix obvious spelling errors but preserve the student's wording.",
-  "subject": "${subject}",
-  "factCheck": [
-    {
-      "claim": "A specific factual claim from the notes",
-      "status": "correct|incorrect|uncertain",
-      "note": "Brief explanation. If incorrect, provide the correction."
-    }
-  ],
-  "learningPoints": [
-    "Key concept or important point 1",
-    "Key concept or important point 2"
-  ],
-  "summary": "2-3 sentence overview of what these notes cover",
-  "topics": ["topic1", "topic2"]
+function saveKey(ocrOnly) {
+  if (ocrOnly) { apiKey = ''; sessionStorage.setItem('nf_key', ''); boot(); return; }
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k) { toast('⚠️ Enter your Groq key or use OCR-only mode'); return; }
+  if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
+  apiKey = k; sessionStorage.setItem('nf_key', k); boot();
 }
 
-Rules:
-- factCheck: identify 4-8 specific factual claims (dates, definitions, formulas, names, etc.)
-- learningPoints: extract 6-12 most important points a student must remember
-- Be honest about fact accuracy — if uncertain, say uncertain
-- Respond ONLY with the raw JSON object, no markdown fences`
+function boot() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Upload ─────────────────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value = ''; });
+
+function setupDrop() {
+  const z = document.getElementById('drop-zone');
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('dragover'); });
+  z.addEventListener('dragleave', () => z.classList.remove('dragover'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('dragover'); handleFiles([...e.dataTransfer.files]); });
+}
+
+async function handleFiles(newFiles) {
+  for (const f of newFiles) {
+    if (files.length >= 6) { toast('Max 6 files'); break; }
+    if (!f.type.startsWith('image/')) { toast('Images only (JPG, PNG)'); continue; }
+    const dataUrl = await toDataUrl(f);
+    files.push({ file: f, dataUrl, name: f.name });
+  }
+  ocrDone = false; ocrTexts = {};
+  renderThumbs();
+  document.getElementById('ocr-btn').disabled = files.length === 0;
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('ocr-box').style.display = 'none';
+  updateHint();
+}
+
+const toDataUrl = f => new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+
+function renderThumbs() {
+  const c = document.getElementById('thumbs'); c.innerHTML = '';
+  files.forEach((e, i) => {
+    const d = document.createElement('div'); d.className = 'thumb'; d.id = 'th' + i;
+    d.innerHTML = `<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${ocrTexts[e.name] ? '✓ done' : ''}</div>`;
+    c.appendChild(d);
+  });
+}
+
+function rmFile(i) { const n = files[i].name; delete ocrTexts[n]; files.splice(i,1); ocrDone=false; renderThumbs(); document.getElementById('ocr-btn').disabled=files.length===0; document.getElementById('analyze-btn').disabled=true; updateHint(); }
+
+function updateHint() {
+  const h = document.getElementById('hint');
+  if (!files.length) h.textContent = 'Step 1: Upload photos → Step 2: Read Notes (OCR) → Step 3: AI Analysis';
+  else if (!ocrDone) h.textContent = 'Photos uploaded ✓ — now click "Read Notes (OCR)"';
+  else if (!apiKey) h.textContent = 'OCR complete ✓ — add a Groq key to enable AI Analysis';
+  else h.textContent = 'OCR complete ✓ — click "AI Analysis" to fact-check & get key points';
+}
+
+// ── OCR ────────────────────────────────────────────────────────────────────────
+async function runOCR() {
+  if (!files.length) return;
+  const btn = document.getElementById('ocr-btn');
+  btn.disabled = true; btn.innerHTML = '⏳ Reading…';
+
+  document.getElementById('ocr-box').style.display = 'block';
+  const rows = document.getElementById('ocr-rows'); rows.innerHTML = '';
+  files.forEach((e, i) => {
+    rows.innerHTML += `<div class="ocr-row"><div class="ocr-name">${e.name}</div><div class="ocr-bar-wrap"><div class="ocr-bar" id="ob${i}" style="width:0%"></div></div><div class="ocr-st pending" id="os${i}">waiting</div></div>`;
+  });
+
+  ocrTexts = {};
+  for (let i = 0; i < files.length; i++) {
+    const e = files[i];
+    document.getElementById(`os${i}`).textContent = 'reading';
+    document.getElementById(`os${i}`).className = 'ocr-st working';
+    try {
+      const r = await Tesseract.recognize(e.dataUrl, 'eng+deu', {
+        logger: m => { if (m.status === 'recognizing text') document.getElementById(`ob${i}`).style.width = Math.round(m.progress*100) + '%'; }
       });
-
-      const resp = await geminiAPI(parts);
-      setStep(2);
-
-      let parsed;
-      try {
-        const text = resp.candidates[0].content.parts[0].text;
-        const clean = text.replace(/```json|```/g, '').trim();
-        parsed = JSON.parse(clean);
-      } catch(e) {
-        throw new Error('Could not parse AI response. Try again.');
-      }
-
-      setStep(3);
-      await delay(600);
-
-      analysisResult = parsed;
-      renderResults(parsed);
-
-      // Auto-fill study plan subject
-      if (parsed.subject) document.getElementById('plan-subject').value = parsed.subject;
-
-    } catch (err) {
-      document.getElementById('results-loading').style.display = 'none';
-      document.getElementById('results-empty').style.display = 'block';
-      document.getElementById('results-empty').innerHTML = `<span class="emoji">❌</span><p>${err.message}</p>`;
-      showToast('❌ ' + err.message);
+      ocrTexts[e.name] = r.data.text;
+      document.getElementById(`ob${i}`).style.width = '100%';
+      document.getElementById(`os${i}`).textContent = '✓ done';
+      document.getElementById(`os${i}`).className = 'ocr-st done';
+      const st = document.getElementById('tst' + i); if (st) st.textContent = '✓ done';
+    } catch {
+      document.getElementById(`os${i}`).textContent = 'error';
+      toast('⚠️ OCR failed for ' + e.name);
     }
   }
 
-  function setStep(n) {
-    for (let i = 1; i <= 3; i++) {
-      const el = document.getElementById('step-' + i);
-      if (i < n) el.className = 'step done';
-      else if (i === n) el.className = 'step active';
-      else el.className = 'step';
-    }
-    const msgs = ['Transcribing your handwriting…', 'Fact-checking claims…', 'Extracting key learning points…'];
-    document.getElementById('loading-msg').textContent = msgs[n-1] || '';
-  }
+  const all = Object.values(ocrTexts).join('\n\n---\n\n');
+  document.getElementById('raw-box').textContent = all.slice(0, 700) + (all.length > 700 ? '…' : '');
+  document.getElementById('raw-wrap').style.display = 'block';
 
-  function renderResults(data) {
-    document.getElementById('results-loading').style.display = 'none';
-    document.getElementById('results-content').style.display = 'block';
-
-    const factHTML = (data.factCheck || []).map(f => `
-      <div class="fact-item ${f.status}">
-        <div class="fact-label">${f.status === 'correct' ? '✓ Correct' : f.status === 'incorrect' ? '✗ Incorrect' : '~ Uncertain'}</div>
-        <div>${f.claim}</div>
-        ${f.note ? `<div class="fact-correction">${f.note}</div>` : ''}
-      </div>
-    `).join('');
-
-    const lpHTML = (data.learningPoints || []).map((pt, i) => `
-      <li class="learning-point">
-        <span class="lp-num">${String(i+1).padStart(2,'0')}</span>
-        <span>${pt}</span>
-      </li>
-    `).join('');
-
-    const topicsHTML = (data.topics || []).map(t => `<span class="chip chip-purple">${t}</span>`).join(' ');
-
-    document.getElementById('results-content').innerHTML = `
-      <div style="margin-bottom:24px">
-        <div class="section-title" style="font-size:1.4rem">Analysis complete</div>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">${topicsHTML}</div>
-        ${data.summary ? `<p style="margin-top:12px;color:var(--text-dim);font-size:0.9rem;line-height:1.7">${data.summary}</p>` : ''}
-      </div>
-
-      <div class="results-grid">
-        <div class="card card-full">
-          <div class="card-header">
-            <div class="card-title"><span class="dot"></span> Transcription</div>
-            <button class="btn btn-ghost btn-sm" onclick="copyText('transcription-text')">Copy</button>
-          </div>
-          <div class="transcription-text" id="transcription-text">${escapeHtml(data.transcription || '')}</div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title"><span class="dot dot-green"></span> Learning Points</div>
-            <span class="chip chip-green">${(data.learningPoints||[]).length} points</span>
-          </div>
-          <ul class="learning-points">${lpHTML}</ul>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title"><span class="dot dot-orange"></span> Fact Check</div>
-            <span class="chip chip-orange">${(data.factCheck||[]).length} claims</span>
-          </div>
-          ${factHTML || '<p style="color:var(--text-dimmer);font-size:0.85rem">No specific factual claims found.</p>'}
-        </div>
-      </div>
-
-      <div class="actions-row">
-        <button class="btn btn-primary" onclick="goToPlan()"><span>📅</span> Build Study Plan</button>
-        <button class="btn btn-ghost" onclick="copyAll()"><span>📋</span> Copy All Results</button>
-      </div>
-    `;
-  }
-
-  function goToPlan() {
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.getElementById('tab-plan').classList.add('active');
-    document.querySelectorAll('.tab')[2].classList.add('active');
-  }
-
-  // ─── Study Plan ───────────────────────────────────────────────────────────────
-  async function generatePlan() {
-    const subject = document.getElementById('plan-subject').value.trim();
-    const examDate = document.getElementById('exam-date').value;
-    const extra = document.getElementById('extra-topics').value.trim();
-
-    if (!subject) { showToast('⚠️ Please enter a subject'); return; }
-    if (!examDate) { showToast('⚠️ Please enter your exam date'); return; }
-
-    const today = new Date();
-    const exam = new Date(examDate);
-    const daysLeft = Math.ceil((exam - today) / 86400000);
-    if (daysLeft < 1) { showToast('⚠️ Exam date must be in the future'); return; }
-
-    document.getElementById('plan-empty').style.display = 'none';
-    document.getElementById('plan-content').style.display = 'none';
-    document.getElementById('plan-loading').style.display = 'block';
-
-    try {
-      const notesContext = analysisResult
-        ? `Key topics from analyzed notes: ${(analysisResult.topics||[]).join(', ')}. Learning points: ${(analysisResult.learningPoints||[]).slice(0,8).join('; ')}.`
-        : '';
-
-      const prompt = `Create a study plan for a student.
-Subject: ${subject}
-Days until exam: ${daysLeft}
-${notesContext}
-${extra ? `Student notes: ${extra}` : ''}
-
-Respond ONLY with JSON (no markdown):
-{
-  "plan": [
-    {
-      "dayOffset": 0,
-      "label": "Day 1 - Monday",
-      "theme": "Short theme title",
-      "tasks": [
-        {"icon": "📖", "task": "Specific study task"},
-        {"icon": "✏️", "task": "Another task"}
-      ]
-    }
-  ],
-  "tips": ["Study tip 1", "Study tip 2", "Study tip 3"]
+  ocrDone = true;
+  btn.innerHTML = '🔍 Re-read Notes'; btn.disabled = false;
+  document.getElementById('analyze-btn').disabled = !apiKey;
+  updateHint();
+  toast('✓ OCR done for ' + files.length + ' file(s)');
 }
 
-Rules:
-- Create ${Math.min(daysLeft, 14)} days of the plan (up to 14 days)
-- Day labels should include actual dates starting from tomorrow
-- Last 2 days should be review/practice
-- Tasks should be specific to "${subject}"
-- 3-5 tasks per day
-- Use relevant emoji icons (📖✏️🔁🧠💡📝🎯🔬📊)`;
+// ── AI Analysis ────────────────────────────────────────────────────────────────
+async function analyzeNotes() {
+  if (!ocrDone || !apiKey) return;
+  const subject = document.getElementById('subject').value.trim() || 'General';
+  const ctx = document.getElementById('context').value.trim();
+  const raw = Object.values(ocrTexts).join('\n\n');
 
-      const resp = await geminiAPI([{ text: prompt }]);
-      const text = resp.candidates[0].content.parts[0].text;
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+  switchTab('results', document.querySelectorAll('.tab')[1]);
+  document.getElementById('res-empty').style.display = 'none';
+  document.getElementById('res-content').style.display = 'none';
+  document.getElementById('res-loading').style.display = 'block';
+  setStep(1);
 
-      document.getElementById('plan-loading').style.display = 'none';
-      renderPlan(parsed, daysLeft, subject, examDate);
+  try {
+    const prompt = `You are analyzing student notes for subject: "${subject}"${ctx ? ` (${ctx})` : ''}.
 
-    } catch (err) {
-      document.getElementById('plan-loading').style.display = 'none';
-      document.getElementById('plan-empty').style.display = 'block';
-      showToast('❌ ' + err.message);
-    }
+Text extracted from handwritten notes via OCR (may have noise/errors):
+<notes>
+${raw}
+</notes>
+
+Respond ONLY with raw JSON (no markdown, no backticks):
+{
+  "transcription": "Clean corrected text. Fix OCR errors, normalize spacing, structure logically.",
+  "subject": "${subject}",
+  "factCheck": [{"claim":"specific factual claim","status":"correct|incorrect|uncertain","note":"explanation or correction"}],
+  "learningPoints": ["Key point to remember"],
+  "summary": "2-3 sentence overview.",
+  "topics": ["topic1"]
+}
+Rules: factCheck 4-8 claims, learningPoints 6-12 items, only raw JSON.`;
+
+    setStep(2);
+    const text = await groq(prompt);
+    setStep(3);
+    await new Promise(r => setTimeout(r, 350));
+
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    analysisResult = parsed;
+    document.getElementById('plan-subject').value = parsed.subject || subject;
+    renderResults(parsed);
+  } catch (err) {
+    document.getElementById('res-loading').style.display = 'none';
+    document.getElementById('res-empty').style.display = 'block';
+    document.getElementById('res-empty').innerHTML = `<span class="em">❌</span><p>${err.message}</p>`;
+    toast('❌ ' + err.message);
   }
+}
 
-  function renderPlan(data, daysLeft, subject, examDate) {
-    document.getElementById('plan-content').style.display = 'block';
-    const examFormatted = new Date(examDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+function setStep(n) {
+  ['s1','s2','s3'].forEach((id, i) => {
+    document.getElementById(id).className = 'step ' + (i+1 < n ? 'done' : i+1 === n ? 'active' : '');
+  });
+  document.getElementById('load-msg').textContent = ['Sending OCR text to Groq…','Fact-checking claims…','Extracting learning points…'][n-1] || '';
+}
 
-    const daysHTML = (data.plan || []).map((day, i) => `
-      <div class="plan-day">
-        <div class="day-marker">
-          <div class="day-dot" style="${i === (data.plan.length-1) ? 'background:var(--accent2);box-shadow:0 0 0 1px var(--accent2)' : ''}"></div>
-          ${i < data.plan.length - 1 ? '<div class="day-line"></div>' : ''}
+function renderResults(d) {
+  document.getElementById('res-loading').style.display = 'none';
+  document.getElementById('res-content').style.display = 'block';
+
+  const facts = (d.factCheck||[]).map(f => `
+    <div class="fact ${f.status}">
+      <div class="fact-lbl">${f.status==='correct'?'✓ Correct':f.status==='incorrect'?'✗ Incorrect':'~ Uncertain'}</div>
+      <div>${f.claim}</div>
+      ${f.note?`<div class="fact-fix">${f.note}</div>`:''}
+    </div>`).join('');
+
+  const lps = (d.learningPoints||[]).map((p,i)=>`
+    <li class="lp-item"><span class="lp-n">${String(i+1).padStart(2,'0')}</span><span>${p}</span></li>`).join('');
+
+  const topics = (d.topics||[]).map(t=>`<span class="chip chip-p">${t}</span>`).join(' ');
+
+  document.getElementById('res-content').innerHTML = `
+    <div style="margin-bottom:22px">
+      <div class="section-title" style="font-size:1.35rem">Analysis complete</div>
+      <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">${topics}</div>
+      ${d.summary?`<p style="margin-top:10px;color:var(--text-dim);font-size:0.89rem;line-height:1.7">${d.summary}</p>`:''}
+    </div>
+    <div class="results-grid">
+      <div class="card card-full">
+        <div class="card-header">
+          <div class="card-title"><span class="dot"></span> Clean Transcription</div>
+          <button class="btn btn-ghost btn-sm" onclick="copyEl('trans')">Copy</button>
         </div>
-        <div class="day-content">
-          <div class="day-label">${day.label}</div>
-          <div class="day-title">${day.theme}</div>
-          <ul class="day-tasks">
-            ${(day.tasks||[]).map(t => `
-              <li class="day-task">
-                <span class="task-icon">${t.icon||'📌'}</span>
-                <span>${t.task}</span>
-              </li>
-            `).join('')}
-          </ul>
-        </div>
+        <div class="trans-text" id="trans">${esc(d.transcription||'')}</div>
       </div>
-    `).join('');
-
-    const tipsHTML = (data.tips||[]).map(t => `
-      <div class="fact-item uncertain" style="margin-bottom:10px">
-        <span style="font-size:0.88rem">${t}</span>
-      </div>
-    `).join('');
-
-    document.getElementById('plan-content').innerHTML = `
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:32px">
-        <div>
-          <div class="section-title" style="font-size:1.4rem">${subject} — ${daysLeft} days to go</div>
-          <p style="color:var(--text-dim);font-size:0.88rem;margin-top:4px">Exam: ${examFormatted}</p>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot dot-g"></span> Learning Points</div>
+          <span class="chip chip-g">${(d.learningPoints||[]).length} points</span>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="copyPlan()">📋 Copy plan</button>
+        <ul class="lp-list">${lps}</ul>
       </div>
-
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:28px;align-items:start">
-        <div>
-          <div class="card-title" style="margin-bottom:20px"><span class="dot"></span> Daily Schedule</div>
-          <div class="plan-timeline">${daysHTML}</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot dot-o"></span> Fact Check</div>
+          <span class="chip chip-o">${(d.factCheck||[]).length} claims</span>
         </div>
-        <div>
-          <div class="card" style="position:sticky;top:90px">
-            <div class="card-header" style="margin-bottom:16px">
-              <div class="card-title"><span class="dot dot-orange"></span> Study Tips</div>
-            </div>
-            ${tipsHTML}
-          </div>
-        </div>
+        ${facts||'<p style="color:var(--text-dimmer);font-size:0.84rem">No specific factual claims found.</p>'}
       </div>
-    `;
-  }
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="goPlan()">📅 Build Study Plan</button>
+      <button class="btn btn-ghost" onclick="copyAll()">📋 Copy All</button>
+    </div>`;
+}
 
-  // ─── Gemini API ───────────────────────────────────────────────────────────────
-  async function geminiAPI(parts) {
-    const model = 'gemini-2.0-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { maxOutputTokens: 4000, temperature: 0.2 }
-      })
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err?.error?.message || `API error ${resp.status}`);
-    }
-    return resp.json();
-  }
+function goPlan() { switchTab('plan', document.querySelectorAll('.tab')[2]); }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
-  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-  function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// ── Study Plan ─────────────────────────────────────────────────────────────────
+async function generatePlan() {
+  if (!apiKey) { toast('⚠️ Need a Groq key for study plans'); return; }
+  const subject = document.getElementById('plan-subject').value.trim();
+  const examDate = document.getElementById('exam-date').value;
+  const extra = document.getElementById('extra-topics').value.trim();
+  if (!subject) { toast('⚠️ Enter a subject'); return; }
+  if (!examDate) { toast('⚠️ Enter exam date'); return; }
+  const days = Math.ceil((new Date(examDate) - new Date()) / 86400000);
+  if (days < 1) { toast('⚠️ Exam date must be in the future'); return; }
 
-  function copyText(id) {
-    const el = document.getElementById(id);
-    navigator.clipboard.writeText(el.textContent || el.innerText);
-    showToast('✓ Copied to clipboard');
-  }
+  document.getElementById('plan-empty').style.display = 'none';
+  document.getElementById('plan-content').style.display = 'none';
+  document.getElementById('plan-loading').style.display = 'block';
 
-  function copyAll() {
-    if (!analysisResult) return;
-    const text = [
-      '=== TRANSCRIPTION ===\n' + analysisResult.transcription,
-      '\n=== LEARNING POINTS ===\n' + (analysisResult.learningPoints||[]).map((p,i)=>`${i+1}. ${p}`).join('\n'),
-      '\n=== FACT CHECK ===\n' + (analysisResult.factCheck||[]).map(f=>`[${f.status.toUpperCase()}] ${f.claim}${f.note?'\n  → '+f.note:''}`).join('\n')
-    ].join('\n');
-    navigator.clipboard.writeText(text);
-    showToast('✓ All results copied');
-  }
+  try {
+    const ctx = analysisResult ? `Topics: ${(analysisResult.topics||[]).join(', ')}. Points: ${(analysisResult.learningPoints||[]).slice(0,6).join('; ')}.` : '';
+    const prompt = `Create a study plan.
+Subject: ${subject}, Days until exam: ${days}
+${ctx}${extra?'\nStudent notes: '+extra:''}
 
-  function copyPlan() {
-    const el = document.getElementById('plan-content');
-    const text = el.innerText;
-    navigator.clipboard.writeText(text);
-    showToast('✓ Study plan copied');
-  }
+Respond ONLY with raw JSON (no markdown):
+{"plan":[{"label":"Day 1 – Mon 28 Apr","theme":"Short theme","tasks":[{"icon":"📖","task":"Specific task"}]}],"tips":["Tip"]}
 
-  let toastTimer;
-  function showToast(msg) {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+Rules: ${Math.min(days,14)} days from tomorrow, last 1-2 days = review, 3-5 tasks/day, specific to ${subject}.`;
+
+    const text = await groq(prompt);
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    document.getElementById('plan-loading').style.display = 'none';
+    renderPlan(parsed, days, subject, examDate);
+  } catch (err) {
+    document.getElementById('plan-loading').style.display = 'none';
+    document.getElementById('plan-empty').style.display = 'block';
+    toast('❌ ' + err.message);
   }
+}
+
+function renderPlan(d, days, subject, examDate) {
+  document.getElementById('plan-content').style.display = 'block';
+  const examFmt = new Date(examDate + 'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  const daysHTML = (d.plan||[]).map((day,i) => `
+    <div class="plan-day">
+      <div class="day-marker">
+        <div class="day-dot" style="${i===d.plan.length-1?'background:var(--accent2);box-shadow:0 0 0 1px var(--accent2)':''}"></div>
+        ${i<d.plan.length-1?'<div class="day-line"></div>':''}
+      </div>
+      <div class="day-content">
+        <div class="day-lbl">${day.label}</div>
+        <div class="day-title">${day.theme}</div>
+        <ul class="day-tasks">${(day.tasks||[]).map(t=>`<li class="day-task"><span>${t.icon||'📌'}</span><span>${t.task}</span></li>`).join('')}</ul>
+      </div>
+    </div>`).join('');
+
+  const tips = (d.tips||[]).map(t=>`<div class="fact uncertain" style="margin-bottom:9px"><span style="font-size:0.87rem">${t}</span></div>`).join('');
+
+  document.getElementById('plan-content').innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:28px">
+      <div>
+        <div class="section-title" style="font-size:1.35rem">${subject} — ${days} days</div>
+        <p style="color:var(--text-dim);font-size:0.86rem;margin-top:4px">Exam: ${examFmt}</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="copyEl('plan-content')">📋 Copy</button>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start">
+      <div><div class="card-title" style="margin-bottom:18px"><span class="dot"></span> Daily Schedule</div>${daysHTML}</div>
+      <div class="card" style="position:sticky;top:88px">
+        <div class="card-header" style="margin-bottom:14px"><div class="card-title"><span class="dot dot-o"></span> Study Tips</div></div>
+        ${tips}
+      </div>
+    </div>`;
+}
+
+// ── Groq ───────────────────────────────────────────────────────────────────────
+async function groq(prompt) {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 4000, temperature: 0.2, messages: [{ role: 'user', content: prompt }] })
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message || 'Groq error ' + r.status); }
+  const d = await r.json();
+  return d.choices[0].message.content;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function copyEl(id) { navigator.clipboard.writeText(document.getElementById(id).textContent || document.getElementById(id).innerText); toast('✓ Copied'); }
+function copyAll() {
+  if (!analysisResult) return;
+  const t = ['=== TRANSCRIPTION ===\n'+analysisResult.transcription,'\n=== LEARNING POINTS ===\n'+(analysisResult.learningPoints||[]).map((p,i)=>`${i+1}. ${p}`).join('\n'),'\n=== FACT CHECK ===\n'+(analysisResult.factCheck||[]).map(f=>`[${f.status.toUpperCase()}] ${f.claim}${f.note?'\n  → '+f.note:''}`).join('\n')].join('\n');
+  navigator.clipboard.writeText(t); toast('✓ All results copied');
+}
+
+let _tt;
+function toast(msg) { const e=document.getElementById('toast'); e.textContent=msg; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),3200); }
 </script>
 </body>
 </html>
