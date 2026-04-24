@@ -3,666 +3,642 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NoteFlow — Smart Study Companion</title>
+<title>NoteFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<!-- Tesseract.js — free in-browser OCR, no API needed -->
-<script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
-  :root {
-    --bg: #0c0c0f;
-    --surface: #141418;
-    --surface2: #1c1c22;
-    --surface3: #252530;
-    --border: #2a2a38;
-    --border-bright: #3d3d52;
-    --accent: #7c6af7;
-    --accent2: #f7a26a;
-    --accent3: #6af7c4;
-    --text: #e8e8f0;
-    --text-dim: #9090a8;
-    --text-dimmer: #5a5a70;
-    --danger: #f76a6a;
-    --success: #6af7a2;
-  }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Bricolage Grotesque', sans-serif; min-height: 100vh; overflow-x: hidden; }
-  body::before {
-    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 1000; opacity: 0.35;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-  }
+:root{--bg:#0d0d10;--s1:#141418;--s2:#1c1c22;--s3:#252530;--br:#2a2a38;--brb:#3d3d52;--ac:#7c6af7;--ac2:#f7a26a;--ac3:#6af7c4;--tx:#e8e8f0;--txd:#9090a8;--txdd:#5a5a70;--ok:#6af7a2;--err:#f76a6a}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;min-height:100vh}
 
-  /* ── Header ── */
-  header { display:flex; align-items:center; justify-content:space-between; padding:18px 36px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:100; }
-  .logo { font-family:'Instrument Serif',serif; font-size:1.6rem; letter-spacing:-0.02em; }
-  .logo span { color:var(--accent); }
-  .badges { display:flex; gap:8px; }
-  .badge { font-family:'DM Mono',monospace; font-size:0.68rem; padding:4px 10px; border-radius:20px; border:1px solid; letter-spacing:0.05em; }
-  .badge-green { color:var(--accent3); border-color:rgba(106,247,196,0.3); background:rgba(106,247,196,0.07); }
-  .badge-dim { color:var(--text-dimmer); border-color:var(--border); }
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:100}
+.logo{font-family:'Instrument Serif',serif;font-size:1.6rem;letter-spacing:-0.02em}
+.logo span{color:var(--ac)}
+.badge{font-family:'DM Mono',monospace;font-size:0.68rem;padding:4px 10px;border-radius:20px;border:1px solid var(--br);color:var(--txdd)}
 
-  /* ── Setup ── */
-  #setup-screen { max-width:560px; margin:56px auto 80px; padding:0 24px; }
-  .setup-hero { text-align:center; margin-bottom:36px; }
-  .setup-hero h2 { font-family:'Instrument Serif',serif; font-size:2.4rem; margin-bottom:10px; letter-spacing:-0.02em; }
-  .setup-hero p { color:var(--text-dim); line-height:1.7; font-size:0.9rem; }
-  .setup-cards { display:flex; flex-direction:column; gap:14px; margin-bottom:28px; }
-  .setup-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px 20px; display:flex; gap:14px; align-items:flex-start; }
-  .sc-icon { font-size:1.5rem; flex-shrink:0; margin-top:2px; }
-  .setup-card h4 { font-size:0.93rem; font-weight:600; margin-bottom:4px; }
-  .setup-card p { font-size:0.82rem; color:var(--text-dim); line-height:1.55; }
-  .setup-card a { color:var(--accent3); text-decoration:none; }
-  .setup-card a:hover { text-decoration:underline; }
-  .info-box { background:rgba(106,247,196,0.07); border:1px solid rgba(106,247,196,0.2); border-radius:12px; padding:12px 16px; font-size:0.82rem; color:var(--accent3); line-height:1.6; margin-bottom:20px; }
+/* setup */
+#setup{max-width:520px;margin:64px auto 80px;padding:0 24px}
+.setup-hero{text-align:center;margin-bottom:32px}
+.setup-hero h2{font-family:'Instrument Serif',serif;font-size:2.3rem;margin-bottom:10px;letter-spacing:-0.02em}
+.setup-hero p{color:var(--txd);line-height:1.7;font-size:0.9rem}
+.info{background:rgba(106,247,196,0.07);border:1px solid rgba(106,247,196,0.2);border-radius:12px;padding:12px 16px;font-size:0.82rem;color:var(--ac3);line-height:1.6;margin-bottom:20px}
+label{display:block;font-size:0.78rem;color:var(--txd);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
+input[type=password],input[type=text],input[type=date],textarea{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 15px;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s}
+input:focus,textarea:focus{border-color:var(--ac)}
+textarea{resize:vertical}
+.field{margin-bottom:18px}
 
-  /* ── App ── */
-  #app { display:none; max-width:1200px; margin:0 auto; padding:36px 24px 80px; }
-  .tabs { display:flex; gap:4px; margin-bottom:32px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:6px; width:fit-content; }
-  .tab { padding:10px 22px; border-radius:10px; border:none; background:transparent; color:var(--text-dim); font-family:'Bricolage Grotesque',sans-serif; font-size:0.88rem; font-weight:500; cursor:pointer; transition:all 0.2s; }
-  .tab:hover { color:var(--text); background:var(--surface2); }
-  .tab.active { background:var(--accent); color:#fff; font-weight:600; }
-  .panel { display:none; }
-  .panel.active { display:block; }
+/* app */
+#app{display:none;max-width:1100px;margin:0 auto;padding:36px 24px 80px}
+.tabs{display:flex;gap:4px;margin-bottom:32px;background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:6px;width:fit-content}
+.tab{padding:10px 22px;border-radius:10px;border:none;background:transparent;color:var(--txd);font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:all 0.2s}
+.tab:hover{color:var(--tx);background:var(--s2)}
+.tab.active{background:var(--ac);color:#fff;font-weight:600}
+.panel{display:none}
+.panel.active{display:block}
 
-  /* ── Upload ── */
-  .upload-zone { border:2px dashed var(--border); border-radius:20px; padding:56px 40px; text-align:center; background:var(--surface); transition:all 0.3s; cursor:pointer; position:relative; overflow:hidden; }
-  .upload-zone::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07) 0%,transparent 70%); pointer-events:none; }
-  .upload-zone:hover, .upload-zone.dragover { border-color:var(--accent); background:var(--surface2); }
-  .upload-icon { font-size:3rem; margin-bottom:14px; display:block; }
-  .upload-zone h3 { font-family:'Instrument Serif',serif; font-size:1.45rem; margin-bottom:8px; }
-  .upload-zone p { color:var(--text-dim); font-size:0.87rem; }
-  #file-input { display:none; }
+/* upload */
+.drop{border:2px dashed var(--br);border-radius:20px;padding:52px 40px;text-align:center;background:var(--s1);transition:all 0.3s;cursor:pointer;position:relative;overflow:hidden}
+.drop::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07) 0%,transparent 70%);pointer-events:none}
+.drop:hover,.drop.over{border-color:var(--ac);background:var(--s2)}
+.drop h3{font-family:'Instrument Serif',serif;font-size:1.4rem;margin:14px 0 6px}
+.drop p{color:var(--txd);font-size:0.86rem}
+#finput{display:none}
 
-  .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px; margin-top:20px; }
-  .thumb { position:relative; border-radius:12px; overflow:hidden; border:2px solid var(--border); aspect-ratio:3/4; background:var(--surface2); }
-  .thumb img { width:100%; height:100%; object-fit:cover; }
-  .thumb .rm { position:absolute; top:6px; right:6px; background:rgba(0,0,0,0.75); border:none; color:#fff; border-radius:50%; width:22px; height:22px; cursor:pointer; font-size:0.72rem; display:flex; align-items:center; justify-content:center; }
-  .thumb-st { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.72); padding:5px 8px; font-size:0.68rem; font-family:'DM Mono',monospace; color:var(--accent3); text-align:center; }
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:18px}
+.thumb{position:relative;border-radius:11px;overflow:hidden;border:2px solid var(--br);aspect-ratio:3/4;background:var(--s2);display:flex;align-items:center;justify-content:center}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .rm{position:absolute;top:5px;right:5px;background:rgba(0,0,0,0.75);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center}
+.thumb-lbl{font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--txd);padding:8px;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb-st{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);padding:4px 6px;font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--ac3);text-align:center}
 
-  /* ── OCR progress ── */
-  .ocr-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:22px; margin-top:20px; }
-  .ocr-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
-  .ocr-row:last-child { border-bottom:none; }
-  .ocr-name { flex:1; font-size:0.82rem; color:var(--text-dim); font-family:'DM Mono',monospace; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .ocr-bar-wrap { width:110px; background:var(--surface3); border-radius:4px; height:5px; overflow:hidden; }
-  .ocr-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.25s; }
-  .ocr-st { font-size:0.72rem; font-family:'DM Mono',monospace; min-width:56px; text-align:right; }
-  .ocr-st.done { color:var(--success); }
-  .ocr-st.working { color:var(--accent); }
-  .ocr-st.pending { color:var(--text-dimmer); }
+/* ocr box */
+.ocr-box{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:20px;margin-top:18px}
+.ocr-lbl{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.08em}
+.ocr-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--br)}
+.ocr-row:last-of-type{border-bottom:none}
+.ocr-name{flex:1;font-size:0.8rem;color:var(--txd);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-wrap{width:100px;background:var(--s3);border-radius:4px;height:5px;overflow:hidden}
+.bar{height:100%;background:var(--ac);border-radius:4px;transition:width 0.2s}
+.ocr-st{font-size:0.7rem;font-family:'DM Mono',monospace;min-width:52px;text-align:right}
+.ocr-st.done{color:var(--ok)}
+.ocr-st.run{color:var(--ac)}
+.ocr-st.pend{color:var(--txdd)}
+.ocr-st.skip{color:var(--ac3)}
 
-  .raw-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px; font-family:'DM Mono',monospace; font-size:0.78rem; line-height:1.7; color:var(--text-dim); max-height:160px; overflow-y:auto; white-space:pre-wrap; margin-top:14px; }
+.raw-box{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px;font-family:'DM Mono',monospace;font-size:0.78rem;line-height:1.7;color:var(--txd);max-height:140px;overflow-y:auto;white-space:pre-wrap;margin-top:12px}
 
-  /* ── Buttons ── */
-  .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border-radius:11px; border:none; font-family:'Bricolage Grotesque',sans-serif; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.2s; }
-  .btn-primary { background:var(--accent); color:#fff; }
-  .btn-primary:hover { background:#6a57e0; transform:translateY(-1px); }
-  .btn-primary:disabled { opacity:0.38; cursor:not-allowed; transform:none; }
-  .btn-warm { background:var(--accent2); color:#1a0f00; }
-  .btn-warm:hover { background:#e8924e; transform:translateY(-1px); }
-  .btn-warm:disabled { opacity:0.38; cursor:not-allowed; transform:none; }
-  .btn-ghost { background:var(--surface2); color:var(--text-dim); border:1px solid var(--border); }
-  .btn-ghost:hover { background:var(--surface3); color:var(--text); }
-  .btn-sm { padding:7px 14px; font-size:0.8rem; border-radius:8px; }
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:11px;border:none;font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-p{background:var(--ac);color:#fff}
+.btn-p:hover{background:#6a57e0;transform:translateY(-1px)}
+.btn-p:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.btn-w{background:var(--ac2);color:#1a0f00}
+.btn-w:hover{background:#e8924e;transform:translateY(-1px)}
+.btn-w:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.btn-g{background:var(--s2);color:var(--txd);border:1px solid var(--br)}
+.btn-g:hover{background:var(--s3);color:var(--tx)}
+.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:8px}
 
-  /* ── Inputs ── */
-  input[type="text"],input[type="date"],input[type="password"],textarea,select { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:11px 15px; color:var(--text); font-family:'Bricolage Grotesque',sans-serif; font-size:0.9rem; outline:none; transition:border-color 0.2s; }
-  input:focus,textarea:focus { border-color:var(--accent); }
-  label { display:block; font-size:0.78rem; color:var(--text-dim); margin-bottom:6px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; font-family:'DM Mono',monospace; }
-  .field { margin-bottom:18px; }
-  textarea { resize:vertical; min-height:100px; }
+/* results */
+.card{background:var(--s1);border:1px solid var(--br);border-radius:18px;padding:26px}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.ctitle{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.dot-g{background:var(--ac3)!important}
 
-  /* ── Results ── */
-  .results-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:28px; }
-  @media(max-width:768px){ .results-grid { grid-template-columns:1fr; } }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:26px; }
-  .card-full { grid-column:1/-1; }
-  .card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-  .card-title { font-family:'DM Mono',monospace; font-size:0.72rem; color:var(--text-dimmer); text-transform:uppercase; letter-spacing:0.1em; display:flex; align-items:center; gap:8px; }
-  .dot { width:8px; height:8px; border-radius:50%; background:var(--accent); }
-  .dot-o { background:var(--accent2) !important; }
-  .dot-g { background:var(--accent3) !important; }
+.trans{font-size:0.91rem;line-height:1.85;color:var(--tx);white-space:pre-wrap;max-height:360px;overflow-y:auto;padding-right:6px}
+.trans::-webkit-scrollbar{width:3px}
+.trans::-webkit-scrollbar-thumb{background:var(--brb);border-radius:2px}
 
-  .trans-text { font-size:0.91rem; line-height:1.8; color:var(--text); white-space:pre-wrap; max-height:380px; overflow-y:auto; padding-right:6px; }
-  .trans-text::-webkit-scrollbar { width:3px; }
-  .trans-text::-webkit-scrollbar-thumb { background:var(--border-bright); border-radius:2px; }
+.lp-list{list-style:none}
+.lp-item{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--br);font-size:0.88rem;line-height:1.65;align-items:flex-start}
+.lp-item:last-child{border-bottom:none}
+.lp-n{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--ac);background:rgba(124,106,247,0.12);border-radius:6px;padding:2px 6px;min-width:26px;text-align:center;margin-top:2px;flex-shrink:0}
 
-  .lp-list { list-style:none; }
-  .lp-item { display:flex; gap:11px; padding:11px 0; border-bottom:1px solid var(--border); font-size:0.87rem; line-height:1.6; align-items:flex-start; }
-  .lp-item:last-child { border-bottom:none; }
-  .lp-n { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--accent); background:rgba(124,106,247,0.12); border-radius:6px; padding:2px 6px; min-width:26px; text-align:center; margin-top:2px; }
+/* plan */
+.plan-setup{background:var(--s1);border:1px solid var(--br);border-radius:18px;padding:26px;margin-bottom:22px}
+.plan-form{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-bottom:14px}
+@media(max-width:600px){.plan-form{grid-template-columns:1fr}}
+.timeline{}
+.pday{display:grid;grid-template-columns:64px 1fr;margin-bottom:0}
+.dm{display:flex;flex-direction:column;align-items:center;padding-right:18px}
+.ddot{width:12px;height:12px;border-radius:50%;background:var(--ac);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--ac);flex-shrink:0;margin-top:4px}
+.dline{width:2px;background:var(--br);flex:1;margin-top:5px;margin-bottom:-2px;min-height:18px}
+.dcontent{background:var(--s1);border:1px solid var(--br);border-radius:13px;padding:16px;margin-bottom:13px}
+.dlbl{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.dtitle{font-weight:600;margin-bottom:8px;font-size:0.96rem}
+.dtasks{list-style:none}
+.dtask{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:0.86rem;color:var(--txd);border-bottom:1px solid var(--br)}
+.dtask:last-child{border-bottom:none}
 
-  .fact { background:var(--surface2); border-radius:11px; padding:13px 15px; margin-bottom:9px; border-left:3px solid var(--border); font-size:0.87rem; line-height:1.6; }
-  .fact.correct { border-left-color:var(--success); }
-  .fact.incorrect { border-left-color:var(--danger); }
-  .fact.uncertain { border-left-color:var(--accent2); }
-  .fact-lbl { font-family:'DM Mono',monospace; font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; font-weight:600; }
-  .fact.correct .fact-lbl { color:var(--success); }
-  .fact.incorrect .fact-lbl { color:var(--danger); }
-  .fact.uncertain .fact-lbl { color:var(--accent2); }
-  .fact-fix { margin-top:7px; padding-top:7px; border-top:1px solid var(--border); color:var(--text-dim); font-size:0.83rem; }
+/* misc */
+.spinner{width:36px;height:36px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px;gap:18px}
+.ltxt{font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--txdd);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
 
-  /* ── Plan ── */
-  .plan-setup { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:28px; margin-bottom:24px; }
-  .plan-form { display:grid; grid-template-columns:1fr 1fr auto; gap:14px; align-items:end; }
-  @media(max-width:640px){ .plan-form { grid-template-columns:1fr; } }
-  .plan-day { display:grid; grid-template-columns:72px 1fr; }
-  .day-marker { display:flex; flex-direction:column; align-items:center; padding-right:20px; }
-  .day-dot { width:13px; height:13px; border-radius:50%; background:var(--accent); border:3px solid var(--bg); box-shadow:0 0 0 1px var(--accent); flex-shrink:0; margin-top:4px; }
-  .day-line { width:2px; background:var(--border); flex:1; margin-top:5px; margin-bottom:-2px; min-height:20px; }
-  .day-content { background:var(--surface); border:1px solid var(--border); border-radius:13px; padding:18px; margin-bottom:14px; }
-  .day-lbl { font-family:'DM Mono',monospace; font-size:0.7rem; color:var(--accent); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:5px; }
-  .day-title { font-weight:600; margin-bottom:9px; font-size:0.97rem; }
-  .day-tasks { list-style:none; }
-  .day-task { display:flex; gap:9px; align-items:flex-start; padding:5px 0; font-size:0.86rem; color:var(--text-dim); border-bottom:1px solid var(--border); }
-  .day-task:last-child { border-bottom:none; }
+.empty{text-align:center;padding:48px 20px;color:var(--txdd)}
+.empty .em{font-size:2.4rem;margin-bottom:10px;display:block}
+.empty p{font-size:0.87rem;line-height:1.6}
 
-  /* ── Misc ── */
-  .loading-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:56px; gap:18px; }
-  .spinner { width:38px; height:38px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .loading-text { font-family:'DM Mono',monospace; font-size:0.8rem; color:var(--text-dimmer); animation:pulse 2s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+.hint{margin-top:9px;font-size:0.75rem;color:var(--txdd);font-family:'DM Mono',monospace}
+.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+.chip{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-family:'DM Mono',monospace}
+.chip-p{background:rgba(124,106,247,0.14);color:var(--ac)}
+.chip-g{background:rgba(106,247,196,0.14);color:var(--ac3)}
 
-  .steps { display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; }
-  .step { display:flex; align-items:center; gap:7px; padding:5px 13px; border-radius:20px; font-size:0.76rem; font-weight:500; background:var(--surface); border:1px solid var(--border); color:var(--text-dimmer); font-family:'DM Mono',monospace; transition:all 0.3s; }
-  .step.done { background:rgba(106,247,162,0.1); border-color:var(--success); color:var(--success); }
-  .step.active { background:rgba(124,106,247,0.15); border-color:var(--accent); color:var(--accent); }
+.stitle{font-family:'Instrument Serif',serif;font-size:1.7rem;margin-bottom:6px;letter-spacing:-0.02em}
+.ssub{color:var(--txd);font-size:0.87rem;margin-bottom:24px}
 
-  .empty { text-align:center; padding:48px 20px; color:var(--text-dimmer); }
-  .empty .em { font-size:2.4rem; margin-bottom:11px; display:block; }
-  .empty p { font-size:0.87rem; }
+#toast{position:fixed;bottom:26px;right:26px;background:var(--s3);border:1px solid var(--brb);border-radius:11px;padding:12px 17px;font-size:0.85rem;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.3s;max-width:300px}
+#toast.show{transform:translateY(0);opacity:1}
 
-  .chip { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:0.73rem; font-family:'DM Mono',monospace; }
-  .chip-p { background:rgba(124,106,247,0.14); color:var(--accent); }
-  .chip-o { background:rgba(247,162,106,0.14); color:var(--accent2); }
-  .chip-g { background:rgba(106,247,196,0.14); color:var(--accent3); }
-
-  .actions { display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; }
-  .hint { margin-top:10px; font-size:0.76rem; color:var(--text-dimmer); font-family:'DM Mono',monospace; }
-
-  #toast { position:fixed; bottom:28px; right:28px; background:var(--surface3); border:1px solid var(--border-bright); border-radius:11px; padding:13px 18px; font-size:0.86rem; z-index:9999; transform:translateY(70px); opacity:0; transition:all 0.3s; max-width:300px; }
-  #toast.show { transform:translateY(0); opacity:1; }
-
-  .section-title { font-family:'Instrument Serif',serif; font-size:1.75rem; margin-bottom:7px; letter-spacing:-0.02em; }
-  .section-sub { color:var(--text-dim); font-size:0.87rem; margin-bottom:26px; }
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
+@media(max-width:700px){.two-col{grid-template-columns:1fr}}
+.full{grid-column:1/-1}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">Note<span>Flow</span></div>
-  <div class="badges">
-    <span class="badge badge-green">✦ 100% Free</span>
-    <span class="badge badge-dim">Browser OCR · No image quota</span>
-  </div>
+  <span class="badge">Free · PDF + Images</span>
 </header>
 
-<!-- ── Setup ── -->
-<div id="setup-screen">
+<!-- SETUP -->
+<div id="setup">
   <div class="setup-hero">
-    <span style="font-size:3rem;display:block;margin-bottom:18px">📝</span>
-    <h2>NoteFlow is free.</h2>
-    <p>Handwriting recognition runs entirely in your browser using Tesseract.js — no image API, no quota limits.<br>You only need a free Groq key for the AI analysis.</p>
+    <span style="font-size:3rem;display:block;margin-bottom:16px">📝</span>
+    <h2>NoteFlow</h2>
+    <p>Upload your notes (photos or PDFs). Get clean learning points and a study plan. No fluff.</p>
   </div>
-
-  <div class="setup-cards">
-    <div class="setup-card">
-      <div class="sc-icon">🔍</div>
-      <div>
-        <h4>In-browser OCR — zero cost</h4>
-        <p>Tesseract.js reads your handwritten photos directly in the browser. No API calls, no limits, works offline.</p>
-      </div>
-    </div>
-    <div class="setup-card">
-      <div class="sc-icon">🧠</div>
-      <div>
-        <h4>Groq AI — free tier</h4>
-        <p>Cleans up OCR text, fact-checks, extracts key points, builds study plans. Get your free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.</p>
-      </div>
-    </div>
-  </div>
-
+  <div class="info">🆓 OCR runs in your browser — free, no quota. You need a free <strong>Groq</strong> key for the AI summary + study plan.<br>Get one at <a href="https://console.groq.com" target="_blank" style="color:var(--ac3)">console.groq.com</a> — no credit card.</div>
   <div class="field">
-    <label>Groq API Key (free — starts with gsk_)</label>
-    <input type="password" id="api-key-input" placeholder="gsk_..." autocomplete="off">
+    <label>Groq API Key (starts with gsk_)</label>
+    <input type="password" id="keyinput" placeholder="gsk_...">
   </div>
-
-  <div class="info-box">
-    💡 No Groq key yet? You can still use NoteFlow — OCR will transcribe your notes and you can copy the raw text. AI features unlock once you add a key.
-  </div>
-
-  <button class="btn btn-primary" onclick="saveKey(false)" style="width:100%;justify-content:center">
-    <span>✦</span> Start NoteFlow
-  </button>
-  <button class="btn btn-ghost" onclick="saveKey(true)" style="width:100%;justify-content:center;margin-top:10px">
-    Use without Groq key (OCR only)
-  </button>
+  <button class="btn btn-p" onclick="saveKey(false)" style="width:100%;justify-content:center">Start →</button>
+  <button class="btn btn-g" onclick="saveKey(true)" style="width:100%;justify-content:center;margin-top:9px">OCR only (no AI)</button>
 </div>
 
-<!-- ── App ── -->
+<!-- APP -->
 <div id="app">
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('upload',this)">📄 Upload Notes</button>
-    <button class="tab" onclick="switchTab('results',this)">✦ Analysis</button>
-    <button class="tab" onclick="switchTab('plan',this)">📅 Study Plan</button>
+    <button class="tab active" onclick="goTab('upload',this)">📄 Notes</button>
+    <button class="tab" onclick="goTab('results',this)">✦ Summary</button>
+    <button class="tab" onclick="goTab('plan',this)">📅 Study Plan</button>
   </div>
 
-  <!-- Upload -->
+  <!-- UPLOAD TAB -->
   <div id="tab-upload" class="panel active">
-    <div class="section-title">Upload your notes</div>
-    <div class="section-sub">Photos of handwritten pages. OCR runs in your browser — free, private, no limits.</div>
+    <div class="stitle">Upload your notes</div>
+    <div class="ssub">Photos of handwritten notes or PDF files. The text gets extracted locally — nothing is uploaded for OCR.</div>
 
-    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <span class="upload-icon">📎</span>
-      <h3>Drop note photos here</h3>
-      <p>or click to browse · JPG, PNG · up to 6 images</p>
-      <input type="file" id="file-input" multiple accept="image/*">
+    <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()">
+      <span style="font-size:2.8rem">📎</span>
+      <h3>Drop files here</h3>
+      <p>Images (JPG, PNG) or PDF · up to 8 files</p>
+      <input type="file" id="finput" multiple accept="image/*,.pdf">
     </div>
 
     <div class="thumbs" id="thumbs"></div>
-
-    <div id="ocr-box" style="display:none" class="ocr-box">
-      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--text-dimmer);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.08em">OCR Progress</div>
-      <div id="ocr-rows"></div>
-      <div id="raw-wrap" style="display:none">
-        <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--text-dimmer);margin:14px 0 5px;text-transform:uppercase;letter-spacing:0.08em">Raw OCR preview</div>
-        <div class="raw-box" id="raw-box"></div>
+    <div class="ocr-box" id="ocrbox" style="display:none">
+      <div class="ocr-lbl">Extraction progress</div>
+      <div id="ocrrows"></div>
+      <div id="rawwrap" style="display:none">
+        <div class="ocr-lbl" style="margin-top:14px">Raw extracted text (preview)</div>
+        <div class="raw-box" id="rawbox"></div>
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0 18px">
-      <div class="field" style="margin:0">
-        <label>Subject / Fach</label>
-        <input type="text" id="subject" placeholder="e.g. Biology, Geschichte…">
-      </div>
-      <div class="field" style="margin:0">
-        <label>Extra context (optional)</label>
-        <input type="text" id="context" placeholder="e.g. Chapter 4 – Cell Division">
-      </div>
+      <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="subject" placeholder="e.g. Biology, Mathe…"></div>
+      <div class="field" style="margin:0"><label>Context (optional)</label><input type="text" id="ctx" placeholder="e.g. Chapter 3 – DNA"></div>
     </div>
-
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="ocr-btn" onclick="runOCR()" disabled>🔍 Read Notes (OCR)</button>
-      <button class="btn btn-warm" id="analyze-btn" onclick="analyzeNotes()" disabled>⚡ AI Analysis</button>
+      <button class="btn btn-p" id="ocrbtn" onclick="runExtract()" disabled>🔍 Extract Text</button>
+      <button class="btn btn-w" id="aibtn" onclick="runAI()" disabled>⚡ Summarise with AI</button>
     </div>
-    <div class="hint" id="hint">Step 1: Upload photos → Step 2: Read Notes (OCR) → Step 3: AI Analysis</div>
+    <div class="hint" id="hint">Upload files to get started.</div>
   </div>
 
-  <!-- Results -->
+  <!-- RESULTS TAB -->
   <div id="tab-results" class="panel">
-    <div id="res-loading" style="display:none">
-      <div class="steps">
-        <div class="step active" id="s1">🧹 Cleaning text</div>
-        <div class="step" id="s2">🔍 Fact-checking</div>
-        <div class="step" id="s3">💡 Key points</div>
-      </div>
-      <div class="loading-wrap">
-        <div class="spinner"></div>
-        <div class="loading-text" id="load-msg">Sending to Groq…</div>
-      </div>
-    </div>
-    <div id="res-empty" class="empty"><span class="em">🖊️</span><p>Upload notes, run OCR, then hit AI Analysis.</p></div>
+    <div id="res-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt" id="loadtxt">Working…</div></div>
+    <div id="res-empty" class="empty"><span class="em">📄</span><p>Upload notes, extract text, then hit Summarise.</p></div>
     <div id="res-content" style="display:none"></div>
   </div>
 
-  <!-- Plan -->
+  <!-- PLAN TAB -->
   <div id="tab-plan" class="panel">
-    <div class="section-title">Build a study plan</div>
-    <div class="section-sub">Enter your exam date and get a personalized revision schedule.</div>
-
+    <div class="stitle">Study plan</div>
+    <div class="ssub">Set your exam date and get a day-by-day plan built from your notes.</div>
     <div class="plan-setup">
       <div class="plan-form">
-        <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="plan-subject" placeholder="e.g. Biologie"></div>
-        <div class="field" style="margin:0"><label>Exam / Test Date</label><input type="date" id="exam-date"></div>
-        <button class="btn btn-primary" onclick="generatePlan()">📅 Generate</button>
+        <div class="field" style="margin:0"><label>Subject</label><input type="text" id="plansub" placeholder="e.g. Biologie"></div>
+        <div class="field" style="margin:0"><label>Exam date</label><input type="date" id="examdate"></div>
+        <button class="btn btn-p" onclick="runPlan()">Generate</button>
       </div>
-      <div style="margin-top:14px">
-        <div class="field" style="margin:0">
-          <label>Weak areas / extra notes (optional)</label>
-          <textarea id="extra-topics" placeholder="e.g. Weak in photosynthesis, focus on mitosis…" style="min-height:68px"></textarea>
-        </div>
-      </div>
+      <div class="field" style="margin:0"><label>Weak spots / extra focus (optional)</label><textarea id="extras" style="min-height:64px" placeholder="e.g. Struggle with photosynthesis…"></textarea></div>
     </div>
-
-    <div id="plan-loading" style="display:none"><div class="loading-wrap"><div class="spinner"></div><div class="loading-text">Building your plan…</div></div></div>
-    <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in subject and exam date above.</p></div>
+    <div id="plan-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt">Building your plan…</div></div>
+    <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in the subject and exam date above.</p></div>
     <div id="plan-content" style="display:none"></div>
   </div>
 </div>
 
 <div id="toast"></div>
+<canvas id="cvs" style="display:none"></canvas>
 
 <script>
+// pdf.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
 // ── State ──────────────────────────────────────────────────────────────────────
 let apiKey = '';
-let files = [];          // {file, dataUrl, name}
-let ocrTexts = {};       // name -> text
-let ocrDone = false;
-let analysisResult = null;
+let files = [];       // {name, type:'image'|'pdf', dataUrl?, file}
+let extracted = {};   // name -> text
+let extractDone = false;
+let summaryResult = null;
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', () => {
-  const k = sessionStorage.getItem('nf_key');
+  const k = sessionStorage.getItem('nf_k');
   if (k !== null) { apiKey = k; boot(); }
   setupDrop();
-  document.getElementById('exam-date').min = new Date().toISOString().split('T')[0];
+  document.getElementById('examdate').min = new Date().toISOString().split('T')[0];
 });
 
 function saveKey(ocrOnly) {
-  if (ocrOnly) { apiKey = ''; sessionStorage.setItem('nf_key', ''); boot(); return; }
-  const k = document.getElementById('api-key-input').value.trim();
-  if (!k) { toast('⚠️ Enter your Groq key or use OCR-only mode'); return; }
-  if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
-  apiKey = k; sessionStorage.setItem('nf_key', k); boot();
+  if (!ocrOnly) {
+    const k = document.getElementById('keyinput').value.trim();
+    if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
+    apiKey = k;
+  } else { apiKey = ''; }
+  sessionStorage.setItem('nf_k', apiKey);
+  boot();
 }
-
-function boot() {
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-}
+function boot() { document.getElementById('setup').style.display='none'; document.getElementById('app').style.display='block'; }
 
 // ── Tabs ───────────────────────────────────────────────────────────────────────
-function switchTab(name, el) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
+function goTab(name, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
   el.classList.add('active');
 }
 
-// ── Upload ─────────────────────────────────────────────────────────────────────
-document.getElementById('file-input').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value = ''; });
-
+// ── Drop / Upload ──────────────────────────────────────────────────────────────
+document.getElementById('finput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
 function setupDrop() {
-  const z = document.getElementById('drop-zone');
-  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('dragover'); });
-  z.addEventListener('dragleave', () => z.classList.remove('dragover'));
-  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('dragover'); handleFiles([...e.dataTransfer.files]); });
+  const z = document.getElementById('dropzone');
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); handleFiles([...e.dataTransfer.files]); });
 }
 
-async function handleFiles(newFiles) {
-  for (const f of newFiles) {
-    if (files.length >= 6) { toast('Max 6 files'); break; }
-    if (!f.type.startsWith('image/')) { toast('Images only (JPG, PNG)'); continue; }
-    const dataUrl = await toDataUrl(f);
-    files.push({ file: f, dataUrl, name: f.name });
+async function handleFiles(newf) {
+  for (const f of newf) {
+    if (files.length >= 8) { toast('Max 8 files'); break; }
+    const isPDF = f.type === 'application/pdf' || f.name.endsWith('.pdf');
+    const isImg = f.type.startsWith('image/');
+    if (!isPDF && !isImg) { toast('Only images and PDFs'); continue; }
+    const dataUrl = isPDF ? null : await toDataUrl(f);
+    files.push({ name: f.name, type: isPDF ? 'pdf' : 'image', dataUrl, file: f });
   }
-  ocrDone = false; ocrTexts = {};
+  extracted = {}; extractDone = false;
   renderThumbs();
-  document.getElementById('ocr-btn').disabled = files.length === 0;
-  document.getElementById('analyze-btn').disabled = true;
-  document.getElementById('ocr-box').style.display = 'none';
+  document.getElementById('ocrbtn').disabled = files.length === 0;
+  document.getElementById('aibtn').disabled = true;
+  document.getElementById('ocrbox').style.display = 'none';
   updateHint();
 }
 
-const toDataUrl = f => new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+const toDataUrl = f => new Promise(r => { const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.readAsDataURL(f); });
 
 function renderThumbs() {
   const c = document.getElementById('thumbs'); c.innerHTML = '';
   files.forEach((e, i) => {
-    const d = document.createElement('div'); d.className = 'thumb'; d.id = 'th' + i;
-    d.innerHTML = `<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${ocrTexts[e.name] ? '✓ done' : ''}</div>`;
+    const d = document.createElement('div'); d.className = 'thumb'; d.id = 'th'+i;
+    if (e.type === 'image') {
+      d.innerHTML = `<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓ done':''}</div>`;
+    } else {
+      d.innerHTML = `<div class="thumb-lbl">📄 ${e.name}</div><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓ done':''}</div>`;
+    }
     c.appendChild(d);
   });
 }
 
-function rmFile(i) { const n = files[i].name; delete ocrTexts[n]; files.splice(i,1); ocrDone=false; renderThumbs(); document.getElementById('ocr-btn').disabled=files.length===0; document.getElementById('analyze-btn').disabled=true; updateHint(); }
+function rmFile(i) { files.splice(i,1); extracted={}; extractDone=false; renderThumbs(); document.getElementById('ocrbtn').disabled=files.length===0; document.getElementById('aibtn').disabled=true; updateHint(); }
 
 function updateHint() {
   const h = document.getElementById('hint');
-  if (!files.length) h.textContent = 'Step 1: Upload photos → Step 2: Read Notes (OCR) → Step 3: AI Analysis';
-  else if (!ocrDone) h.textContent = 'Photos uploaded ✓ — now click "Read Notes (OCR)"';
-  else if (!apiKey) h.textContent = 'OCR complete ✓ — add a Groq key to enable AI Analysis';
-  else h.textContent = 'OCR complete ✓ — click "AI Analysis" to fact-check & get key points';
+  if (!files.length) h.textContent='Upload files to get started.';
+  else if (!extractDone) h.textContent='Files loaded ✓ — click "Extract Text"';
+  else if (!apiKey) h.textContent='Text extracted ✓ — add a Groq key to use AI summarisation';
+  else h.textContent='Text extracted ✓ — click "Summarise with AI"';
 }
 
-// ── OCR ────────────────────────────────────────────────────────────────────────
-async function runOCR() {
-  if (!files.length) return;
-  const btn = document.getElementById('ocr-btn');
-  btn.disabled = true; btn.innerHTML = '⏳ Reading…';
+// ── Image preprocessing for better OCR ────────────────────────────────────────
+// Converts image to high-contrast grayscale before Tesseract
+function preprocessImage(dataUrl) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const cvs = document.getElementById('cvs');
+      cvs.width = img.width;
+      cvs.height = img.height;
+      const ctx = cvs.getContext('2d');
 
-  document.getElementById('ocr-box').style.display = 'block';
-  const rows = document.getElementById('ocr-rows'); rows.innerHTML = '';
+      // Draw original
+      ctx.drawImage(img, 0, 0);
+
+      // Get pixel data
+      const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
+      const d = id.data;
+
+      // 1. Grayscale
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+        d[i] = d[i+1] = d[i+2] = gray;
+      }
+
+      // 2. Contrast stretch — find min/max
+      let mn = 255, mx = 0;
+      for (let i = 0; i < d.length; i += 4) { mn=Math.min(mn,d[i]); mx=Math.max(mx,d[i]); }
+      const range = mx - mn || 1;
+
+      // 3. Stretch + mild threshold to sharpen text
+      for (let i = 0; i < d.length; i += 4) {
+        let v = ((d[i] - mn) / range) * 255;
+        // Slight sigmoid to push near-white whiter and near-black blacker
+        v = v < 128 ? Math.max(0, v - 20) : Math.min(255, v + 20);
+        d[i] = d[i+1] = d[i+2] = v;
+      }
+
+      ctx.putImageData(id, 0, 0);
+      resolve(cvs.toDataURL('image/png'));
+    };
+    img.src = dataUrl;
+  });
+}
+
+// ── PDF text extraction ───────────────────────────────────────────────────────
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    text += tc.items.map(i => i.str).join(' ') + '\n';
+  }
+  return text.trim();
+}
+
+// ── Extract all files ─────────────────────────────────────────────────────────
+async function runExtract() {
+  if (!files.length) return;
+  const btn = document.getElementById('ocrbtn');
+  btn.disabled = true; btn.innerHTML = '⏳ Extracting…';
+
+  document.getElementById('ocrbox').style.display = 'block';
+  const rows = document.getElementById('ocrrows'); rows.innerHTML = '';
   files.forEach((e, i) => {
-    rows.innerHTML += `<div class="ocr-row"><div class="ocr-name">${e.name}</div><div class="ocr-bar-wrap"><div class="ocr-bar" id="ob${i}" style="width:0%"></div></div><div class="ocr-st pending" id="os${i}">waiting</div></div>`;
+    rows.innerHTML += `<div class="ocr-row">
+      <div class="ocr-name">${e.name}</div>
+      <div class="bar-wrap"><div class="bar" id="ob${i}" style="width:0%"></div></div>
+      <div class="ocr-st pend" id="os${i}">waiting</div>
+    </div>`;
   });
 
-  ocrTexts = {};
+  extracted = {};
+
   for (let i = 0; i < files.length; i++) {
     const e = files[i];
-    document.getElementById(`os${i}`).textContent = 'reading';
-    document.getElementById(`os${i}`).className = 'ocr-st working';
+    const stEl = document.getElementById(`os${i}`);
+    const barEl = document.getElementById(`ob${i}`);
+    stEl.textContent = 'working'; stEl.className = 'ocr-st run';
+
     try {
-      const r = await Tesseract.recognize(e.dataUrl, 'eng+deu', {
-        logger: m => { if (m.status === 'recognizing text') document.getElementById(`ob${i}`).style.width = Math.round(m.progress*100) + '%'; }
-      });
-      ocrTexts[e.name] = r.data.text;
-      document.getElementById(`ob${i}`).style.width = '100%';
-      document.getElementById(`os${i}`).textContent = '✓ done';
-      document.getElementById(`os${i}`).className = 'ocr-st done';
-      const st = document.getElementById('tst' + i); if (st) st.textContent = '✓ done';
-    } catch {
-      document.getElementById(`os${i}`).textContent = 'error';
-      toast('⚠️ OCR failed for ' + e.name);
+      if (e.type === 'pdf') {
+        // PDF: extract text directly — no OCR needed
+        stEl.textContent = 'reading pdf…'; barEl.style.width = '50%';
+        const text = await extractPDF(e.file);
+        extracted[e.name] = text;
+        barEl.style.width = '100%';
+        stEl.textContent = '✓ done'; stEl.className = 'ocr-st done';
+        const ts = document.getElementById('tst'+i); if(ts) ts.textContent='✓ done';
+
+      } else {
+        // Image: preprocess then OCR
+        stEl.textContent = 'processing…'; barEl.style.width = '15%';
+        const preprocessed = await preprocessImage(e.dataUrl);
+        barEl.style.width = '25%';
+
+        const result = await Tesseract.recognize(preprocessed, 'eng+deu+fra', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              barEl.style.width = (25 + m.progress * 70) + '%';
+            }
+          }
+        });
+        extracted[e.name] = result.data.text;
+        barEl.style.width = '100%';
+        stEl.textContent = '✓ done'; stEl.className = 'ocr-st done';
+        const ts = document.getElementById('tst'+i); if(ts) ts.textContent='✓ done';
+      }
+    } catch (err) {
+      stEl.textContent = 'error'; stEl.className = 'ocr-st';
+      toast('⚠️ Failed: ' + e.name);
     }
   }
 
-  const all = Object.values(ocrTexts).join('\n\n---\n\n');
-  document.getElementById('raw-box').textContent = all.slice(0, 700) + (all.length > 700 ? '…' : '');
-  document.getElementById('raw-wrap').style.display = 'block';
+  const all = Object.values(extracted).join('\n\n---\n\n');
+  if (all.trim()) {
+    document.getElementById('rawbox').textContent = all.slice(0, 600) + (all.length > 600 ? '…' : '');
+    document.getElementById('rawwrap').style.display = 'block';
+  }
 
-  ocrDone = true;
-  btn.innerHTML = '🔍 Re-read Notes'; btn.disabled = false;
-  document.getElementById('analyze-btn').disabled = !apiKey;
+  extractDone = true;
+  btn.innerHTML = '🔍 Re-extract'; btn.disabled = false;
+  document.getElementById('aibtn').disabled = !apiKey;
   updateHint();
-  toast('✓ OCR done for ' + files.length + ' file(s)');
+  toast('✓ Extraction done');
 }
 
-// ── AI Analysis ────────────────────────────────────────────────────────────────
-async function analyzeNotes() {
-  if (!ocrDone || !apiKey) return;
+// ── AI Summarise ──────────────────────────────────────────────────────────────
+async function runAI() {
+  if (!extractDone || !apiKey) return;
   const subject = document.getElementById('subject').value.trim() || 'General';
-  const ctx = document.getElementById('context').value.trim();
-  const raw = Object.values(ocrTexts).join('\n\n');
+  const ctx = document.getElementById('ctx').value.trim();
+  const raw = Object.values(extracted).join('\n\n');
 
-  switchTab('results', document.querySelectorAll('.tab')[1]);
+  goTab('results', document.querySelectorAll('.tab')[1]);
   document.getElementById('res-empty').style.display = 'none';
   document.getElementById('res-content').style.display = 'none';
-  document.getElementById('res-loading').style.display = 'block';
-  setStep(1);
+  document.getElementById('res-load').style.display = 'flex';
+  document.getElementById('loadtxt').textContent = 'Sending to Groq…';
 
   try {
-    const prompt = `You are analyzing student notes for subject: "${subject}"${ctx ? ` (${ctx})` : ''}.
+    const prompt = `You are a study assistant. The student has notes on "${subject}"${ctx?` (${ctx})`:''}. 
 
-Text extracted from handwritten notes via OCR (may have noise/errors):
+Below is the raw extracted text from their notes (may have OCR noise for handwritten parts):
 <notes>
-${raw}
+${raw.slice(0, 12000)}
 </notes>
 
-Respond ONLY with raw JSON (no markdown, no backticks):
+Your job:
+1. Write a clean, readable version of the notes (fix typos, OCR errors, make it coherent).
+2. Extract the most important learning points — things the student MUST know.
+
+Respond ONLY with this exact JSON (no markdown, no extra text):
 {
-  "transcription": "Clean corrected text. Fix OCR errors, normalize spacing, structure logically.",
-  "subject": "${subject}",
-  "factCheck": [{"claim":"specific factual claim","status":"correct|incorrect|uncertain","note":"explanation or correction"}],
-  "learningPoints": ["Key point to remember"],
-  "summary": "2-3 sentence overview.",
-  "topics": ["topic1"]
+  "clean": "The clean version of the notes, well structured.",
+  "points": ["Learning point 1", "Learning point 2", "...up to 15 points"],
+  "topics": ["topic1", "topic2"]
 }
-Rules: factCheck 4-8 claims, learningPoints 6-12 items, only raw JSON.`;
 
-    setStep(2);
+Be concise. Do not add explanations outside of what is in the notes. Do not invent content.`;
+
     const text = await groq(prompt);
-    setStep(3);
-    await new Promise(r => setTimeout(r, 350));
-
-    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
-    analysisResult = parsed;
-    document.getElementById('plan-subject').value = parsed.subject || subject;
+    document.getElementById('res-load').style.display = 'none';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    summaryResult = parsed;
+    document.getElementById('plansub').value = subject;
     renderResults(parsed);
   } catch (err) {
-    document.getElementById('res-loading').style.display = 'none';
+    document.getElementById('res-load').style.display = 'none';
     document.getElementById('res-empty').style.display = 'block';
     document.getElementById('res-empty').innerHTML = `<span class="em">❌</span><p>${err.message}</p>`;
     toast('❌ ' + err.message);
   }
 }
 
-function setStep(n) {
-  ['s1','s2','s3'].forEach((id, i) => {
-    document.getElementById(id).className = 'step ' + (i+1 < n ? 'done' : i+1 === n ? 'active' : '');
-  });
-  document.getElementById('load-msg').textContent = ['Sending OCR text to Groq…','Fact-checking claims…','Extracting learning points…'][n-1] || '';
-}
-
 function renderResults(d) {
-  document.getElementById('res-loading').style.display = 'none';
   document.getElementById('res-content').style.display = 'block';
-
-  const facts = (d.factCheck||[]).map(f => `
-    <div class="fact ${f.status}">
-      <div class="fact-lbl">${f.status==='correct'?'✓ Correct':f.status==='incorrect'?'✗ Incorrect':'~ Uncertain'}</div>
-      <div>${f.claim}</div>
-      ${f.note?`<div class="fact-fix">${f.note}</div>`:''}
-    </div>`).join('');
-
-  const lps = (d.learningPoints||[]).map((p,i)=>`
-    <li class="lp-item"><span class="lp-n">${String(i+1).padStart(2,'0')}</span><span>${p}</span></li>`).join('');
-
   const topics = (d.topics||[]).map(t=>`<span class="chip chip-p">${t}</span>`).join(' ');
+  const points = (d.points||[]).map((p,i)=>`<li class="lp-item"><span class="lp-n">${String(i+1).padStart(2,'0')}</span><span>${p}</span></li>`).join('');
 
   document.getElementById('res-content').innerHTML = `
     <div style="margin-bottom:22px">
-      <div class="section-title" style="font-size:1.35rem">Analysis complete</div>
+      <div class="stitle" style="font-size:1.35rem">Done</div>
       <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">${topics}</div>
-      ${d.summary?`<p style="margin-top:10px;color:var(--text-dim);font-size:0.89rem;line-height:1.7">${d.summary}</p>`:''}
     </div>
-    <div class="results-grid">
-      <div class="card card-full">
-        <div class="card-header">
-          <div class="card-title"><span class="dot"></span> Clean Transcription</div>
-          <button class="btn btn-ghost btn-sm" onclick="copyEl('trans')">Copy</button>
+    <div class="two-col">
+      <div class="card full">
+        <div class="card-hd">
+          <div class="ctitle"><span class="dot"></span> Clean Notes</div>
+          <button class="btn btn-g btn-sm" onclick="copyEl('cleannotes')">Copy</button>
         </div>
-        <div class="trans-text" id="trans">${esc(d.transcription||'')}</div>
+        <div class="trans" id="cleannotes">${esc(d.clean||'')}</div>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><span class="dot dot-g"></span> Learning Points</div>
-          <span class="chip chip-g">${(d.learningPoints||[]).length} points</span>
+      <div class="card full">
+        <div class="card-hd">
+          <div class="ctitle"><span class="dot dot-g"></span> Learning Points</div>
+          <span class="chip chip-g">${(d.points||[]).length}</span>
         </div>
-        <ul class="lp-list">${lps}</ul>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><span class="dot dot-o"></span> Fact Check</div>
-          <span class="chip chip-o">${(d.factCheck||[]).length} claims</span>
-        </div>
-        ${facts||'<p style="color:var(--text-dimmer);font-size:0.84rem">No specific factual claims found.</p>'}
+        <ul class="lp-list">${points}</ul>
       </div>
     </div>
     <div class="actions">
-      <button class="btn btn-primary" onclick="goPlan()">📅 Build Study Plan</button>
-      <button class="btn btn-ghost" onclick="copyAll()">📋 Copy All</button>
+      <button class="btn btn-p" onclick="goTab('plan',document.querySelectorAll('.tab')[2])">📅 Build Study Plan</button>
+      <button class="btn btn-g" onclick="copyAll()">📋 Copy All</button>
     </div>`;
 }
 
-function goPlan() { switchTab('plan', document.querySelectorAll('.tab')[2]); }
-
 // ── Study Plan ─────────────────────────────────────────────────────────────────
-async function generatePlan() {
-  if (!apiKey) { toast('⚠️ Need a Groq key for study plans'); return; }
-  const subject = document.getElementById('plan-subject').value.trim();
-  const examDate = document.getElementById('exam-date').value;
-  const extra = document.getElementById('extra-topics').value.trim();
-  if (!subject) { toast('⚠️ Enter a subject'); return; }
-  if (!examDate) { toast('⚠️ Enter exam date'); return; }
-  const days = Math.ceil((new Date(examDate) - new Date()) / 86400000);
-  if (days < 1) { toast('⚠️ Exam date must be in the future'); return; }
+async function runPlan() {
+  if (!apiKey) { toast('⚠️ Need a Groq key'); return; }
+  const sub = document.getElementById('plansub').value.trim();
+  const exam = document.getElementById('examdate').value;
+  const extras = document.getElementById('extras').value.trim();
+  if (!sub) { toast('⚠️ Enter a subject'); return; }
+  if (!exam) { toast('⚠️ Enter exam date'); return; }
+  const days = Math.ceil((new Date(exam) - new Date()) / 86400000);
+  if (days < 1) { toast('⚠️ Date must be in the future'); return; }
 
-  document.getElementById('plan-empty').style.display = 'none';
-  document.getElementById('plan-content').style.display = 'none';
-  document.getElementById('plan-loading').style.display = 'block';
+  document.getElementById('plan-empty').style.display='none';
+  document.getElementById('plan-content').style.display='none';
+  document.getElementById('plan-load').style.display='flex';
 
   try {
-    const ctx = analysisResult ? `Topics: ${(analysisResult.topics||[]).join(', ')}. Points: ${(analysisResult.learningPoints||[]).slice(0,6).join('; ')}.` : '';
-    const prompt = `Create a study plan.
-Subject: ${subject}, Days until exam: ${days}
-${ctx}${extra?'\nStudent notes: '+extra:''}
+    const notesCtx = summaryResult
+      ? `Key topics: ${(summaryResult.topics||[]).join(', ')}. Main points: ${(summaryResult.points||[]).slice(0,8).join('; ')}.`
+      : '';
 
-Respond ONLY with raw JSON (no markdown):
-{"plan":[{"label":"Day 1 – Mon 28 Apr","theme":"Short theme","tasks":[{"icon":"📖","task":"Specific task"}]}],"tips":["Tip"]}
+    const prompt = `Create a study plan for a student.
+Subject: ${sub}
+Days until exam: ${days}
+${notesCtx}
+${extras?'Student notes: '+extras:''}
 
-Rules: ${Math.min(days,14)} days from tomorrow, last 1-2 days = review, 3-5 tasks/day, specific to ${subject}.`;
+Respond ONLY with raw JSON (no markdown, no backticks):
+{
+  "days": [
+    {"label":"Day 1 – Mon 28 Apr","theme":"Short focus theme","tasks":[{"icon":"📖","task":"Specific task for ${sub}"}]}
+  ],
+  "tips": ["Short practical tip"]
+}
+
+Rules:
+- Exactly ${Math.min(days,14)} days starting tomorrow
+- Last day = final review
+- 3-4 tasks per day, all specific to ${sub}
+- 3 tips max
+- Only include what a student can realistically do`;
 
     const text = await groq(prompt);
     const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
-    document.getElementById('plan-loading').style.display = 'none';
-    renderPlan(parsed, days, subject, examDate);
-  } catch (err) {
-    document.getElementById('plan-loading').style.display = 'none';
-    document.getElementById('plan-empty').style.display = 'block';
-    toast('❌ ' + err.message);
+    document.getElementById('plan-load').style.display='none';
+    renderPlan(parsed, days, sub, exam);
+  } catch(err) {
+    document.getElementById('plan-load').style.display='none';
+    document.getElementById('plan-empty').style.display='block';
+    toast('❌ '+err.message);
   }
 }
 
-function renderPlan(d, days, subject, examDate) {
-  document.getElementById('plan-content').style.display = 'block';
-  const examFmt = new Date(examDate + 'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+function renderPlan(d, days, sub, exam) {
+  document.getElementById('plan-content').style.display='block';
+  const examFmt = new Date(exam+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
 
-  const daysHTML = (d.plan||[]).map((day,i) => `
-    <div class="plan-day">
-      <div class="day-marker">
-        <div class="day-dot" style="${i===d.plan.length-1?'background:var(--accent2);box-shadow:0 0 0 1px var(--accent2)':''}"></div>
-        ${i<d.plan.length-1?'<div class="day-line"></div>':''}
+  const daysH = (d.days||[]).map((day,i)=>`
+    <div class="pday">
+      <div class="dm">
+        <div class="ddot" style="${i===d.days.length-1?'background:var(--ac2);box-shadow:0 0 0 1px var(--ac2)':''}"></div>
+        ${i<d.days.length-1?'<div class="dline"></div>':''}
       </div>
-      <div class="day-content">
-        <div class="day-lbl">${day.label}</div>
-        <div class="day-title">${day.theme}</div>
-        <ul class="day-tasks">${(day.tasks||[]).map(t=>`<li class="day-task"><span>${t.icon||'📌'}</span><span>${t.task}</span></li>`).join('')}</ul>
+      <div class="dcontent">
+        <div class="dlbl">${day.label}</div>
+        <div class="dtitle">${day.theme}</div>
+        <ul class="dtasks">${(day.tasks||[]).map(t=>`<li class="dtask"><span>${t.icon||'📌'}</span><span>${t.task}</span></li>`).join('')}</ul>
       </div>
     </div>`).join('');
 
-  const tips = (d.tips||[]).map(t=>`<div class="fact uncertain" style="margin-bottom:9px"><span style="font-size:0.87rem">${t}</span></div>`).join('');
+  const tipsH = (d.tips||[]).map(t=>`<div style="padding:10px 0;border-bottom:1px solid var(--br);font-size:0.87rem;color:var(--txd)">${t}</div>`).join('');
 
-  document.getElementById('plan-content').innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:28px">
+  document.getElementById('plan-content').innerHTML=`
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:26px">
       <div>
-        <div class="section-title" style="font-size:1.35rem">${subject} — ${days} days</div>
-        <p style="color:var(--text-dim);font-size:0.86rem;margin-top:4px">Exam: ${examFmt}</p>
+        <div class="stitle" style="font-size:1.35rem">${sub} — ${days} day${days!==1?'s':''} to go</div>
+        <p style="color:var(--txd);font-size:0.85rem;margin-top:3px">Exam: ${examFmt}</p>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="copyEl('plan-content')">📋 Copy</button>
+      <button class="btn btn-g btn-sm" onclick="copyEl('plan-content')">📋 Copy</button>
     </div>
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;align-items:start">
-      <div><div class="card-title" style="margin-bottom:18px"><span class="dot"></span> Daily Schedule</div>${daysHTML}</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:22px;align-items:start">
+      <div>${daysH}</div>
       <div class="card" style="position:sticky;top:88px">
-        <div class="card-header" style="margin-bottom:14px"><div class="card-title"><span class="dot dot-o"></span> Study Tips</div></div>
-        ${tips}
+        <div class="card-hd" style="margin-bottom:12px"><div class="ctitle"><span class="dot" style="background:var(--ac2)"></span> Tips</div></div>
+        ${tipsH}
       </div>
     </div>`;
 }
 
 // ── Groq ───────────────────────────────────────────────────────────────────────
 async function groq(prompt) {
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-    body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 4000, temperature: 0.2, messages: [{ role: 'user', content: prompt }] })
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4000,temperature:0.15,messages:[{role:'user',content:prompt}]})
   });
-  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message || 'Groq error ' + r.status); }
-  const d = await r.json();
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||'Groq error '+r.status);}
+  const d=await r.json();
   return d.choices[0].message.content;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function copyEl(id) { navigator.clipboard.writeText(document.getElementById(id).textContent || document.getElementById(id).innerText); toast('✓ Copied'); }
-function copyAll() {
-  if (!analysisResult) return;
-  const t = ['=== TRANSCRIPTION ===\n'+analysisResult.transcription,'\n=== LEARNING POINTS ===\n'+(analysisResult.learningPoints||[]).map((p,i)=>`${i+1}. ${p}`).join('\n'),'\n=== FACT CHECK ===\n'+(analysisResult.factCheck||[]).map(f=>`[${f.status.toUpperCase()}] ${f.claim}${f.note?'\n  → '+f.note:''}`).join('\n')].join('\n');
-  navigator.clipboard.writeText(t); toast('✓ All results copied');
+function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent||document.getElementById(id).innerText);toast('✓ Copied');}
+function copyAll(){
+  if(!summaryResult)return;
+  const t=['=== NOTES ===\n'+summaryResult.clean,'\n=== LEARNING POINTS ===\n'+(summaryResult.points||[]).map((p,i)=>`${i+1}. ${p}`).join('\n')].join('\n');
+  navigator.clipboard.writeText(t);toast('✓ Copied');
 }
-
 let _tt;
-function toast(msg) { const e=document.getElementById('toast'); e.textContent=msg; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),3200); }
+function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),3000);}
 </script>
 </body>
 </html>
