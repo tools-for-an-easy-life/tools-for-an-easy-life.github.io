@@ -4,309 +4,427 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NoteFlow</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
-:root{--bg:#0d0d10;--s1:#141418;--s2:#1c1c22;--s3:#252530;--br:#2a2a38;--brb:#3d3d52;--ac:#7c6af7;--ac2:#f7a26a;--ac3:#6af7c4;--tx:#e8e8f0;--txd:#9090a8;--txdd:#5a5a70;--ok:#6af7a2;--err:#f76a6a}
+:root{
+  --bg:#f5f2eb;--s1:#edeae0;--s2:#e4e0d3;--s3:#d8d3c3;
+  --br:#c8c2ad;--brb:#a89f87;
+  --ink:#1a1710;--ink2:#3d3929;--ink3:#6b6550;
+  --ac:#2d4a3e;--ac2:#8b4513;--ac3:#4a6741;
+  --red:#c0392b;--ok:#27694f;
+  --tag1:#e8d5b7;--tag2:#d4e8d5;--tag3:#d5d4e8;--tag4:#e8d5d5;
+}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;min-height:100vh}
-::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--s2)}::-webkit-scrollbar-thumb{background:var(--brb);border-radius:2px}
+body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',sans-serif;min-height:100vh;line-height:1.5}
 
-/* NAV */
-header{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:200}
-.logo{font-family:'Instrument Serif',serif;font-size:1.5rem;letter-spacing:-0.02em;cursor:pointer}
-.logo span{color:var(--ac)}
-nav{display:flex;gap:4px}
-.navbtn{padding:8px 16px;border-radius:10px;border:none;background:transparent;color:var(--txd);font-family:'Bricolage Grotesque',sans-serif;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.2s}
-.navbtn:hover{color:var(--tx);background:var(--s2)}
-.navbtn.active{background:var(--ac);color:#fff;font-weight:600}
-.navbtn:disabled{opacity:0.3;cursor:not-allowed}
+/* noise texture overlay */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
 
-/* PAGES */
-.page{display:none;max-width:1000px;margin:0 auto;padding:36px 24px 80px}
-.page.active{display:block}
-#page-setup{max-width:520px}
+/* ── LAYOUT ── */
+.app-shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.sidebar{background:var(--s1);border-right:1px solid var(--br);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.main{overflow:hidden}
 
-/* SETUP */
-.setup-hero{text-align:center;margin-bottom:28px}
-.setup-hero h2{font-family:'Instrument Serif',serif;font-size:2.2rem;margin-bottom:8px}
-.setup-hero p{color:var(--txd);font-size:0.9rem;line-height:1.6}
-.info-box{background:rgba(106,247,196,0.07);border:1px solid rgba(106,247,196,0.2);border-radius:12px;padding:12px 16px;font-size:0.82rem;color:var(--ac3);line-height:1.6;margin-bottom:18px}
-.info-box a{color:var(--ac3)}
+/* ── SIDEBAR ── */
+.sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid var(--br)}
+.logo-text{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--ink);letter-spacing:-0.03em}
+.logo-text span{color:var(--ac)}
+.logo-sub{font-size:0.72rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:2px}
 
-/* FORMS */
-label{display:block;font-size:0.76rem;color:var(--txd);margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
-input[type=password],input[type=text],input[type=date],textarea,select{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 15px;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s}
-input:focus,textarea:focus,select:focus{border-color:var(--ac)}
-select option{background:var(--s2)}
-textarea{resize:vertical}
-.field{margin-bottom:16px}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
-@media(max-width:600px){.row2,.row3{grid-template-columns:1fr}}
+.sidebar-section{padding:12px 14px 4px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em}
 
-/* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:11px;border:none;font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
-.btn-p{background:var(--ac);color:#fff}.btn-p:hover{background:#6a57e0;transform:translateY(-1px)}.btn-p:disabled{opacity:0.35;cursor:not-allowed;transform:none}
-.btn-w{background:var(--ac2);color:#1a0800}.btn-w:hover{background:#e8924e;transform:translateY(-1px)}.btn-w:disabled{opacity:0.35;cursor:not-allowed;transform:none}
-.btn-g{background:var(--s2);color:var(--txd);border:1px solid var(--br)}.btn-g:hover{background:var(--s3);color:var(--tx)}
-.btn-ok{background:rgba(106,247,162,0.15);color:var(--ok);border:1px solid rgba(106,247,162,0.3)}.btn-ok:hover{background:rgba(106,247,162,0.25)}
-.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:8px}
-.btn-xs{padding:5px 10px;font-size:0.75rem;border-radius:7px}
-.full-btn{width:100%;justify-content:center}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:8px;margin:1px 8px;cursor:pointer;transition:all 0.15s;font-size:0.86rem;color:var(--ink2);border:none;background:transparent;width:calc(100% - 16px);text-align:left;font-family:'Instrument Sans',sans-serif}
+.nav-item:hover{background:var(--s2);color:var(--ink)}
+.nav-item.active{background:var(--ac);color:#f5f2eb;font-weight:600}
+.nav-item .ni-icon{font-size:1rem;flex-shrink:0;width:18px;text-align:center}
+.nav-item .ni-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-item .ni-badge{font-family:'DM Mono',monospace;font-size:0.62rem;background:rgba(0,0,0,0.12);padding:2px 6px;border-radius:10px;flex-shrink:0}
 
-/* UPLOAD */
-.drop{border:2px dashed var(--br);border-radius:18px;padding:48px 32px;text-align:center;background:var(--s1);transition:all 0.3s;cursor:pointer;position:relative}
-.drop::before{content:'';position:absolute;inset:0;border-radius:18px;background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07),transparent 70%);pointer-events:none}
+.sidebar-bottom{margin-top:auto;padding:12px 8px;border-top:1px solid var(--br)}
+.api-status{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);padding:8px 12px;display:flex;align-items:center;gap:6px}
+.api-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0}
+.api-dot.ok{background:var(--ok)}
+
+/* ── MAIN CONTENT ── */
+.view{display:none;height:100vh;overflow-y:auto}
+.view.active{display:flex;flex-direction:column}
+.view-header{padding:28px 36px 0;border-bottom:1px solid var(--br);background:var(--bg);position:sticky;top:0;z-index:10}
+.view-title{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:500;letter-spacing:-0.03em;color:var(--ink)}
+.view-sub{color:var(--ink3);font-size:0.84rem;margin-top:4px;padding-bottom:18px}
+.view-body{padding:28px 36px;flex:1}
+
+/* ── SETUP ── */
+.setup-center{max-width:480px;margin:0 auto;padding:60px 24px}
+.setup-card{background:var(--s1);border:1px solid var(--br);border-radius:16px;padding:32px}
+.setup-icon{font-size:2.8rem;margin-bottom:16px;display:block}
+.setup-card h2{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:500;margin-bottom:8px;letter-spacing:-0.03em}
+.setup-card p{color:var(--ink3);font-size:0.88rem;line-height:1.6;margin-bottom:20px}
+.info-box{background:rgba(39,105,79,0.08);border:1px solid rgba(39,105,79,0.25);border-radius:10px;padding:11px 14px;font-size:0.81rem;color:var(--ok);line-height:1.6;margin-bottom:18px}
+.info-box a{color:var(--ok);font-weight:600}
+
+/* ── FORMS ── */
+label{display:block;font-size:0.72rem;color:var(--ink3);margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
+input[type=password],input[type=text],input[type=date],textarea,select{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:9px;padding:10px 14px;color:var(--ink);font-family:'Instrument Sans',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(45,74,62,0.1)}
+select{cursor:pointer}
+textarea{resize:vertical;line-height:1.6}
+.field{margin-bottom:15px}
+.field:last-child{margin-bottom:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:700px){.row2,.row3{grid-template-columns:1fr}}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:9px;border:none;font-family:'Instrument Sans',sans-serif;font-size:0.86rem;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.btn-p{background:var(--ac);color:#f5f2eb}.btn-p:hover{background:#213d32;transform:translateY(-1px)}.btn-p:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-o{background:var(--ac2);color:#f5f2eb}.btn-o:hover{background:#6b3410;transform:translateY(-1px)}.btn-o:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--br)}.btn-ghost:hover{background:var(--s2);color:var(--ink)}
+.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(192,57,43,0.3)}.btn-danger:hover{background:rgba(192,57,43,0.08)}
+.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:7px}
+.btn-xs{padding:4px 9px;font-size:0.74rem;border-radius:6px}
+.btn-full{width:100%;justify-content:center}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:20px}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:7px}
+.card-title .dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0}
+.dot-o{background:var(--ac2)!important}.dot-r{background:var(--red)!important}.dot-g{background:var(--ok)!important}
+
+/* ── TEST CARDS ON DASHBOARD ── */
+.tests-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.test-card{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:18px;cursor:pointer;transition:all 0.15s;position:relative}
+.test-card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 4px 16px rgba(45,74,62,0.1)}
+.test-card-subject{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.02em}
+.test-card-date{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--ink3);margin-bottom:10px}
+.test-card-stats{display:flex;gap:8px;flex-wrap:wrap}
+.stat-chip{font-family:'DM Mono',monospace;font-size:0.65rem;padding:3px 8px;border-radius:20px;border:1px solid var(--br);color:var(--ink3)}
+.stat-chip.urgent{border-color:rgba(192,57,43,0.4);color:var(--red);background:rgba(192,57,43,0.06)}
+.stat-chip.ok{border-color:rgba(39,105,79,0.4);color:var(--ok);background:rgba(39,105,79,0.06)}
+.test-card-bar{height:3px;background:var(--s3);border-radius:2px;margin-top:12px;overflow:hidden}
+.test-card-bar-fill{height:100%;background:var(--ac);border-radius:2px;transition:width 0.5s}
+
+/* ── OVERVIEW CALENDAR ── */
+.cal-wrap{overflow-x:auto;padding-bottom:8px}
+.cal-grid{display:grid;grid-auto-columns:minmax(100px,1fr);grid-auto-flow:column;gap:8px;min-width:max-content}
+.cal-day{background:var(--s1);border:1px solid var(--br);border-radius:11px;padding:12px;min-width:100px}
+.cal-day.today{border-color:var(--ac);background:rgba(45,74,62,0.04)}
+.cal-day.exam-day{border-color:var(--red);background:rgba(192,57,43,0.04)}
+.cal-date{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);margin-bottom:8px}
+.cal-event{font-size:0.75rem;padding:4px 7px;border-radius:6px;margin-bottom:4px;line-height:1.3}
+.cal-event.study{background:var(--tag2);color:#1a3d22}
+.cal-event.exam{background:var(--tag4);color:#5a1010;font-weight:600}
+
+/* ── UPLOAD ── */
+.drop{border:2px dashed var(--br);border-radius:14px;padding:44px 28px;text-align:center;background:var(--s1);transition:all 0.2s;cursor:pointer}
 .drop:hover,.drop.over{border-color:var(--ac);background:var(--s2)}
-.drop h3{font-family:'Instrument Serif',serif;font-size:1.35rem;margin:12px 0 6px}
-.drop p{color:var(--txd);font-size:0.85rem}
-#finput{display:none}
+.drop h3{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:400;margin:10px 0 4px;letter-spacing:-0.02em}
+.drop p{color:var(--ink3);font-size:0.83rem}
+.drop-note{background:rgba(139,69,19,0.07);border:1px solid rgba(139,69,19,0.2);border-radius:9px;padding:10px 13px;font-size:0.8rem;color:var(--ac2);line-height:1.5;margin-top:12px;text-align:left}
 
-.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:16px}
-.thumb{position:relative;border-radius:10px;overflow:hidden;border:2px solid var(--br);aspect-ratio:3/4;background:var(--s2);display:flex;flex-direction:column;align-items:center;justify-content:center}
-.thumb img{width:100%;height:100%;object-fit:cover}
-.thumb .rm{position:absolute;top:5px;right:5px;background:rgba(0,0,0,0.75);border:none;color:#fff;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.68rem;display:flex;align-items:center;justify-content:center}
-.thumb-lbl{font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--txd);padding:6px;text-align:center;word-break:break-all}
-.thumb-st{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);padding:4px;font-size:0.62rem;font-family:'DM Mono',monospace;color:var(--ac3);text-align:center}
+.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.file-row{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:10px 12px}
+.file-icon{font-size:1.1rem;flex-shrink:0}
+.file-name{flex:1;font-size:0.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-status{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3)}
+.file-status.ok{color:var(--ok)}.file-status.err{color:var(--red)}.file-status.run{color:var(--ac)}
+.file-rm{background:none;border:none;color:var(--ink3);cursor:pointer;font-size:0.9rem;padding:2px 4px;border-radius:4px}
+.file-rm:hover{color:var(--red)}
+.file-progress{height:3px;background:var(--s3);border-radius:2px;margin-top:6px;overflow:hidden;display:none}
+.file-pbar{height:100%;background:var(--ac);border-radius:2px;transition:width 0.2s}
 
-/* OCR PROGRESS */
-.ocrbox{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:18px;margin-top:16px}
-.ocr-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--br)}
-.ocr-row:last-of-type{border-bottom:none}
-.ocr-name{flex:1;font-size:0.78rem;color:var(--txd);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bwrap{width:90px;background:var(--s3);border-radius:3px;height:4px;overflow:hidden}
-.bbar{height:100%;background:var(--ac);border-radius:3px;transition:width 0.2s}
-.ost{font-size:0.68rem;font-family:'DM Mono',monospace;min-width:48px;text-align:right}
-.ost.done{color:var(--ok)}.ost.run{color:var(--ac)}.ost.pend{color:var(--txdd)}
+/* ── DEF TOGGLES ── */
+.def-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--br)}
+.def-item:last-child{border-bottom:none}
+.def-term{flex:1;font-size:0.86rem}
+.def-toggle{font-family:'DM Mono',monospace;font-size:0.66rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid;transition:all 0.15s;background:none;font-family:'DM Mono',monospace}
+.def-toggle.wfw{border-color:rgba(139,69,19,0.4);color:var(--ac2);background:rgba(139,69,19,0.07)}
+.def-toggle.know{border-color:rgba(39,105,79,0.4);color:var(--ok);background:rgba(39,105,79,0.07)}
 
-/* DEFINITIONS TABLE */
-.def-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--br)}
-.def-row:last-child{border-bottom:none}
-.def-text{font-size:0.87rem;color:var(--tx)}
-.def-badge{font-family:'DM Mono',monospace;font-size:0.68rem;padding:3px 8px;border-radius:20px;cursor:pointer;border:1px solid;transition:all 0.2s;white-space:nowrap}
-.def-badge.wfw{background:rgba(247,162,106,0.15);color:var(--ac2);border-color:rgba(247,162,106,0.3)}
-.def-badge.understand{background:rgba(106,247,196,0.1);color:var(--ac3);border-color:rgba(106,247,196,0.25)}
-
-/* CARDS */
-.card{background:var(--s1);border:1px solid var(--br);border-radius:16px;padding:22px}
-.card+.card{margin-top:16px}
-.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.ctitle{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:7px}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0}
-.dot-g{background:var(--ac3)!important}.dot-o{background:var(--ac2)!important}
-
-/* LEARNING POINTS */
+/* ── LEARNING POINTS ── */
 .lp-list{list-style:none}
 .lp-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--br);font-size:0.87rem;line-height:1.6;align-items:flex-start}
 .lp-item:last-child{border-bottom:none}
-.lp-n{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);background:rgba(124,106,247,0.12);border-radius:5px;padding:2px 6px;min-width:24px;text-align:center;margin-top:2px;flex-shrink:0}
-.lp-item.wfw-item .lp-n{background:rgba(247,162,106,0.15);color:var(--ac2)}
+.lp-n{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--ac);background:rgba(45,74,62,0.1);border-radius:5px;padding:2px 6px;min-width:24px;text-align:center;margin-top:2px;flex-shrink:0}
+.lp-wfw .lp-n{background:rgba(139,69,19,0.1);color:var(--ac2)}
+.lp-def{margin-top:5px;font-size:0.81rem;color:var(--ink3);background:var(--s2);padding:7px 10px;border-radius:7px;border-left:2px solid var(--ac2);line-height:1.5}
+.tag{font-family:'DM Mono',monospace;font-size:0.62rem;padding:2px 7px;border-radius:20px;margin-right:5px}
+.tag-wfw{background:var(--tag1);color:#5a3010}
+.tag-know{background:var(--tag2);color:#1a4020}
 
-/* PLAN */
-.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:4px}
-.day-card{background:var(--s2);border:1px solid var(--br);border-radius:13px;padding:16px;cursor:pointer;transition:all 0.2s;position:relative}
-.day-card:hover{border-color:var(--ac);background:var(--s3);transform:translateY(-2px)}
-.day-card.done-day{border-color:var(--ok);background:rgba(106,247,162,0.05)}
-.day-card.done-day::after{content:'✓';position:absolute;top:10px;right:12px;color:var(--ok);font-size:0.9rem;font-weight:700}
-.day-card.today-day{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
-.dlbl{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px}
-.dtheme{font-weight:600;font-size:0.92rem;margin-bottom:8px}
-.dtopics{font-size:0.78rem;color:var(--txd);line-height:1.5}
+/* ── PLAN DAYS ── */
+.plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.plan-day{background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s}
+.plan-day:hover{border-color:var(--ac);transform:translateY(-1px)}
+.plan-day.done{border-color:var(--ok);background:rgba(39,105,79,0.04)}
+.plan-day.done::after{content:'✓';float:right;color:var(--ok);font-weight:700}
+.pd-lbl{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
+.pd-theme{font-weight:600;font-size:0.88rem;margin-bottom:6px}
+.pd-pts{font-size:0.75rem;color:var(--ink3);line-height:1.4}
 
-/* DAY MODAL */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
-.modal{background:var(--s1);border:1px solid var(--brb);border-radius:20px;width:100%;max-width:640px;max-height:85vh;overflow-y:auto;padding:28px;position:relative}
-.modal-close{position:absolute;top:16px;right:16px;background:var(--s2);border:none;color:var(--txd);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem}
-.modal h2{font-family:'Instrument Serif',serif;font-size:1.5rem;margin-bottom:4px}
-.modal-sub{color:var(--txd);font-size:0.85rem;margin-bottom:20px}
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(26,23,16,0.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.modal{background:var(--bg);border:1px solid var(--brb);border-radius:18px;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:28px;position:relative}
+.modal-close{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--ink2);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.8rem;font-family:'Instrument Sans',sans-serif}
+.modal h2{font-family:'Fraunces',serif;font-size:1.4rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.02em}
+.modal-sub{color:var(--ink3);font-size:0.82rem;margin-bottom:18px}
+.modal-section{margin-bottom:18px}
+.modal-section-title{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
 
-/* QUIZ */
-.quiz-q{font-size:1rem;font-weight:600;line-height:1.6;margin-bottom:18px;padding:16px;background:var(--s2);border-radius:12px;border-left:3px solid var(--ac)}
-.quiz-opts{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-.quiz-opt{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:0.88rem;text-align:left;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;transition:all 0.2s}
-.quiz-opt:hover:not(:disabled){border-color:var(--ac);background:var(--s3)}
-.quiz-opt.correct{border-color:var(--ok);background:rgba(106,247,162,0.1);color:var(--ok)}
-.quiz-opt.wrong{border-color:var(--err);background:rgba(247,106,106,0.1);color:var(--err)}
+/* ── QUIZ ── */
+.quiz-q{font-size:0.95rem;font-weight:600;line-height:1.6;margin-bottom:14px;padding:14px;background:var(--s2);border-radius:11px;border-left:3px solid var(--ac)}
+.quiz-opts{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+.quiz-opt{background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:10px 14px;cursor:pointer;font-size:0.86rem;text-align:left;color:var(--ink);font-family:'Instrument Sans',sans-serif;transition:all 0.15s}
+.quiz-opt:hover:not(:disabled){border-color:var(--ac);background:var(--s2)}
+.quiz-opt.correct{border-color:var(--ok);background:rgba(39,105,79,0.1);color:var(--ok)}
+.quiz-opt.wrong{border-color:var(--red);background:rgba(192,57,43,0.08);color:var(--red)}
 .quiz-opt:disabled{cursor:default}
-.quiz-explain{font-size:0.84rem;color:var(--txd);padding:12px;background:var(--s2);border-radius:10px;margin-bottom:14px;line-height:1.6;border-left:3px solid var(--brb)}
+.quiz-exp{font-size:0.82rem;color:var(--ink3);padding:10px 12px;background:var(--s2);border-radius:9px;margin-bottom:12px;line-height:1.6;border-left:3px solid var(--br)}
 
-/* CHAT */
-.chat-wrap{display:flex;flex-direction:column;height:420px}
-.chat-msgs{flex:1;overflow-y:auto;padding:4px 0;display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-.msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:0.88rem;line-height:1.6}
-.msg.user{align-self:flex-end;background:var(--ac);color:#fff;border-bottom-right-radius:4px}
-.msg.ai{align-self:flex-start;background:var(--s2);color:var(--tx);border-bottom-left-radius:4px}
-.msg.ai.thinking{color:var(--txdd);font-style:italic}
-.chat-input-row{display:flex;gap:8px}
-.chat-input-row input{flex:1}
+/* ── CHAT ── */
+.chat-wrap{display:flex;flex-direction:column;height:500px;background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-input-area{padding:12px;border-top:1px solid var(--br);display:flex;gap:8px;background:var(--bg)}
+.chat-input-area input{flex:1}
+.msg{max-width:80%;padding:10px 14px;border-radius:12px;font-size:0.87rem;line-height:1.6}
+.msg.user{align-self:flex-end;background:var(--ac);color:#f5f2eb;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:var(--s2);border:1px solid var(--br);color:var(--ink);border-bottom-left-radius:4px}
+.msg.thinking{color:var(--ink3);font-style:italic}
 
-/* MISC */
-.spinner{width:34px;height:34px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin 0.8s linear infinite}
+/* ── NOTES EDITOR ── */
+.notes-area{background:var(--bg);border:1px solid var(--br);border-radius:10px;width:100%;padding:14px;font-family:'Instrument Sans',sans-serif;font-size:0.88rem;line-height:1.7;color:var(--ink);min-height:120px;resize:vertical;outline:none;transition:border-color 0.2s}
+.notes-area:focus{border-color:var(--ac)}
+
+/* ── PROGRESS BAR ── */
+.prog-wrap{background:var(--s3);border-radius:20px;height:6px;overflow:hidden;margin:8px 0}
+.prog-bar{height:100%;background:var(--ac);border-radius:20px;transition:width 0.4s}
+
+/* ── MISC ── */
+.spinner{width:28px;height:28px;border:2.5px solid var(--s3);border-top-color:var(--ac);border-radius:50%;animation:spin 0.7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading{display:flex;flex-direction:column;align-items:center;padding:52px;gap:16px}
-.ltxt{font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--txdd);animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+.loading{display:flex;align-items:center;gap:12px;padding:20px;color:var(--ink3);font-size:0.84rem}
+.section-loading{display:flex;flex-direction:column;align-items:center;padding:48px;gap:14px;color:var(--ink3);font-size:0.84rem}
 
-.empty{text-align:center;padding:44px 20px;color:var(--txdd)}
-.empty .em{font-size:2.2rem;margin-bottom:10px;display:block}
-.empty p{font-size:0.86rem;line-height:1.6}
+.empty-state{text-align:center;padding:48px 24px;color:var(--ink3)}
+.empty-state .em{font-size:2.4rem;display:block;margin-bottom:12px}
+.empty-state p{font-size:0.86rem;line-height:1.6}
 
-.chip{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:0.7rem;font-family:'DM Mono',monospace}
-.chip-p{background:rgba(124,106,247,0.14);color:var(--ac)}
-.chip-g{background:rgba(106,247,196,0.14);color:var(--ac3)}
-.chip-o{background:rgba(247,162,106,0.14);color:var(--ac2)}
+.actions-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.hint-text{font-size:0.75rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:7px}
 
-.actions{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}
-.hint{margin-top:8px;font-size:0.73rem;color:var(--txdd);font-family:'DM Mono',monospace}
-.sec-title{font-family:'Instrument Serif',serif;font-size:1.6rem;margin-bottom:6px}
-.sec-sub{color:var(--txd);font-size:0.86rem;margin-bottom:22px}
-.notif-bar{background:rgba(124,106,247,0.1);border:1px solid rgba(124,106,247,0.25);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:var(--txd);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
-.divider{height:1px;background:var(--br);margin:20px 0}
-#toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--brb);border-radius:10px;padding:11px 16px;font-size:0.84rem;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.3s;max-width:280px}
+#toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:var(--bg);border-radius:9px;padding:10px 15px;font-size:0.83rem;z-index:9999;transform:translateY(50px);opacity:0;transition:all 0.25s;max-width:260px}
 #toast.show{transform:translateY(0);opacity:1}
+
+.divider{height:1px;background:var(--br);margin:18px 0}
+.chip{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:0.68rem;font-family:'DM Mono',monospace;border:1px solid var(--br);color:var(--ink3)}
 canvas#cvs{display:none}
+
+/* steps */
+.steps-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.step-pill{font-family:'DM Mono',monospace;font-size:0.68rem;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--br);color:var(--ink3);transition:all 0.2s}
+.step-pill.active{background:rgba(45,74,62,0.12);border-color:rgba(45,74,62,0.4);color:var(--ac)}
+.step-pill.done{background:rgba(39,105,79,0.1);border-color:rgba(39,105,79,0.3);color:var(--ok)}
+
+/* tabs inside view */
+.inner-tabs{display:flex;gap:2px;margin-bottom:22px;background:var(--s2);padding:4px;border-radius:9px;width:fit-content}
+.inner-tab{padding:7px 16px;border-radius:7px;border:none;background:transparent;color:var(--ink3);font-family:'Instrument Sans',sans-serif;font-size:0.83rem;font-weight:500;cursor:pointer;transition:all 0.15s}
+.inner-tab:hover{color:var(--ink)}
+.inner-tab.active{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+
+.notif-bar{background:rgba(45,74,62,0.07);border:1px solid rgba(45,74,62,0.2);border-radius:9px;padding:9px 13px;font-size:0.8rem;color:var(--ac);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 </style>
 </head>
 <body>
-<header>
-  <div class="logo" onclick="goPage('upload')">Note<span>Flow</span></div>
-  <nav>
-    <button class="navbtn active" id="nav-upload" onclick="goPage('upload')">📄 Notes</button>
-    <button class="navbtn" id="nav-results" onclick="goPage('results')">✦ Summary</button>
-    <button class="navbtn" id="nav-plan" onclick="goPage('plan')">📅 Plan</button>
-    <button class="navbtn" id="nav-chat" onclick="goPage('chat')">💬 Chat</button>
-  </nav>
-</header>
 
-<!-- SETUP PAGE -->
-<div class="page active" id="page-setup" style="max-width:520px">
-  <div class="setup-hero">
-    <span style="font-size:2.8rem;display:block;margin-bottom:14px">📝</span>
-    <h2>NoteFlow</h2>
-    <p>Upload notes. Get learning points and a study plan. No fluff.</p>
-  </div>
-  <div class="info-box">🆓 OCR runs in your browser — free & private. You need a free <strong>Groq</strong> key for AI features.<br>Get one at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.</div>
-  <div class="field"><label>Groq API Key (starts with gsk_)</label><input type="password" id="keyinput" placeholder="gsk_..."></div>
-  <button class="btn btn-p full-btn" onclick="saveKey(false)">Start →</button>
-  <button class="btn btn-g full-btn" onclick="saveKey(true)" style="margin-top:8px">OCR only (no AI)</button>
-</div>
-
-<!-- UPLOAD PAGE -->
-<div class="page" id="page-upload">
-  <div class="sec-title">Upload notes</div>
-  <div class="sec-sub">Photos or PDFs. OCR runs in your browser — no API, no quota.</div>
-
-  <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()">
-    <span style="font-size:2.6rem">📎</span>
-    <h3>Drop files here</h3>
-    <p>Images (JPG/PNG) or PDF · up to 8 files</p>
-    <input type="file" id="finput" multiple accept="image/*,.pdf">
-  </div>
-  <div class="thumbs" id="thumbs"></div>
-  <div class="ocrbox" id="ocrbox" style="display:none">
-    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Extraction progress</div>
-    <div id="ocrrows"></div>
-    <div id="rawwrap" style="display:none">
-      <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);margin:12px 0 5px;text-transform:uppercase;letter-spacing:0.08em">Raw preview</div>
-      <div style="background:var(--s2);border:1px solid var(--br);border-radius:9px;padding:12px;font-family:'DM Mono',monospace;font-size:0.76rem;line-height:1.65;color:var(--txd);max-height:120px;overflow-y:auto;white-space:pre-wrap" id="rawbox"></div>
+<!-- ── SETUP (shown before app) ── -->
+<div id="setup-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
+  <div class="setup-center">
+    <div class="setup-card">
+      <span class="setup-icon">📝</span>
+      <h2>NoteFlow</h2>
+      <p>Upload your notes. Get learning points, study plans, and quizzes — one place per test.</p>
+      <div class="info-box">
+        🆓 Free — uses <strong>Groq AI</strong> (vision + text).<br>
+        Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.<br>
+        PDFs work perfectly. For images, <strong>type the text</strong> if OCR misreads it.
+      </div>
+      <div class="field"><label>Groq API Key</label><input type="password" id="keyinput" placeholder="gsk_..."></div>
+      <button class="btn btn-p btn-full" onclick="saveKey()">Get started →</button>
     </div>
   </div>
+</div>
 
-  <div class="divider"></div>
-  <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Settings</div>
+<!-- ── MAIN APP ── -->
+<div id="app" style="display:none" class="app-shell">
 
-  <div class="row2" style="margin-bottom:14px">
-    <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="subject" placeholder="e.g. Biology, Mathe…"></div>
-    <div class="field" style="margin:0">
-      <label>Language</label>
-      <select id="lang">
-        <option value="keep">Keep original language</option>
-        <option value="en">Translate to English</option>
-        <option value="fr">Translate to French</option>
-        <option value="de">Translate to German</option>
-        <option value="es">Translate to Spanish</option>
-        <option value="nl">Translate to Dutch</option>
-        <option value="it">Translate to Italian</option>
-        <option value="pt">Translate to Portuguese</option>
-      </select>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-text">Note<span>Flow</span></div>
+      <div class="logo-sub">study companion</div>
     </div>
-  </div>
 
-  <div class="field">
-    <label>Important definitions — one per line (toggle word-for-word vs just understand)</label>
-    <textarea id="defsInput" placeholder="e.g. Mitosis&#10;ATP synthesis&#10;Photosynthesis" style="min-height:80px" oninput="renderDefs()"></textarea>
-  </div>
-  <div id="defs-list" style="margin-bottom:16px"></div>
+    <div class="sidebar-section">Overview</div>
+    <button class="nav-item active" id="nav-dashboard" onclick="goView('dashboard')"><span class="ni-icon">🏠</span><span class="ni-label">Dashboard</span></button>
+    <button class="nav-item" id="nav-schedule" onclick="goView('schedule')"><span class="ni-icon">📆</span><span class="ni-label">Schedule</span></button>
 
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <button class="btn btn-p" id="ocrbtn" onclick="runExtract()" disabled>🔍 Extract Text</button>
-    <button class="btn btn-w" id="aibtn" onclick="runAI()" disabled>⚡ Summarise</button>
-  </div>
-  <div class="hint" id="hint">Upload files to get started.</div>
-</div>
+    <div class="sidebar-section" style="margin-top:8px">Tests</div>
+    <div id="test-nav-list"></div>
+    <button class="nav-item" onclick="openNewTest()" style="margin-top:4px;color:var(--ac)"><span class="ni-icon">＋</span><span class="ni-label">Add test</span></button>
 
-<!-- RESULTS PAGE -->
-<div class="page" id="page-results">
-  <div id="res-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt" id="loadtxt">Working…</div></div>
-  <div id="res-empty" class="empty"><span class="em">📄</span><p>Upload notes, extract text, then summarise.</p></div>
-  <div id="res-content" style="display:none"></div>
-</div>
+    <div class="sidebar-bottom">
+      <div class="api-status"><span class="api-dot" id="api-dot"></span><span id="api-status-txt">No API key</span></div>
+    </div>
+  </aside>
 
-<!-- PLAN PAGE -->
-<div class="page" id="page-plan">
-  <div class="sec-title">Study plan</div>
-  <div class="sec-sub">Set your exam date. The plan is sized to your actual material — not a fixed template.</div>
+  <!-- VIEWS -->
+  <main class="main">
 
-  <div id="notif-bar" class="notif-bar" style="display:none">
-    <span>🔔 Enable browser reminders to get notified when to study</span>
-    <button class="btn btn-p btn-sm" onclick="requestNotifs()">Enable</button>
-  </div>
-
-  <div class="card" style="margin-bottom:16px">
-    <div class="row3">
-      <div class="field" style="margin:0"><label>Subject</label><input type="text" id="plansub" placeholder="e.g. Biology"></div>
-      <div class="field" style="margin:0"><label>Exam date</label><input type="date" id="examdate"></div>
-      <div class="field" style="margin:0"><label>Study time per day</label>
-        <select id="studytime">
-          <option value="30">30 min/day</option>
-          <option value="60" selected>1 hour/day</option>
-          <option value="90">1.5 hours/day</option>
-          <option value="120">2 hours/day</option>
-        </select>
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="view-header">
+        <div class="view-title">Dashboard</div>
+        <div class="view-sub">Your upcoming tests at a glance.</div>
+      </div>
+      <div class="view-body">
+        <div id="dashboard-content">
+          <div class="empty-state"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> in the sidebar to get started.</p></div>
+        </div>
       </div>
     </div>
-    <div class="field" style="margin-top:12px;margin-bottom:0"><label>Weak spots (optional)</label><textarea id="extras" style="min-height:56px" placeholder="e.g. Still confused about photosynthesis…"></textarea></div>
-    <div style="margin-top:14px"><button class="btn btn-p" onclick="runPlan()">Generate plan</button></div>
-  </div>
 
-  <div id="plan-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt">Building your plan…</div></div>
-  <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in subject and exam date above.</p></div>
-  <div id="plan-content" style="display:none"></div>
-</div>
-
-<!-- CHAT PAGE -->
-<div class="page" id="page-chat">
-  <div class="sec-title">Ask about your notes</div>
-  <div class="sec-sub">Ask anything about the material you uploaded.</div>
-  <div class="card">
-    <div class="chat-wrap">
-      <div class="chat-msgs" id="chat-msgs">
-        <div class="msg ai">Hi! Ask me anything about your notes. I'll only answer based on what's in them.</div>
+    <!-- SCHEDULE -->
+    <div class="view" id="view-schedule">
+      <div class="view-header">
+        <div class="view-title">Schedule</div>
+        <div class="view-sub">All your study days and exams in one view.</div>
       </div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-in" placeholder="Ask a question…" onkeydown="if(event.key==='Enter')sendChat()">
-        <button class="btn btn-p btn-sm" onclick="sendChat()">Send</button>
+      <div class="view-body">
+        <div id="schedule-content"><div class="empty-state"><span class="em">📆</span><p>Add tests and generate plans to see your schedule here.</p></div></div>
       </div>
     </div>
-  </div>
+
+    <!-- TEST VIEW (dynamic, one per test) -->
+    <div class="view" id="view-test">
+      <div class="view-header" id="test-view-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div class="view-title" id="test-view-title">Test</div>
+            <div class="view-sub" id="test-view-sub"></div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="deleteCurrentTest()">Delete test</button>
+        </div>
+        <div style="padding-bottom:4px">
+          <div class="inner-tabs" style="margin-bottom:0">
+            <button class="inner-tab active" onclick="goTestTab('notes',this)">📄 Notes</button>
+            <button class="inner-tab" onclick="goTestTab('summary',this)">✦ Summary</button>
+            <button class="inner-tab" onclick="goTestTab('plan',this)">📅 Plan</button>
+            <button class="inner-tab" onclick="goTestTab('chat',this)">💬 Chat</button>
+          </div>
+        </div>
+      </div>
+      <div class="view-body" style="padding-top:20px">
+        <!-- NOTES TAB -->
+        <div id="tt-notes" class="test-tab active">
+          <!-- upload -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title"><span class="dot"></span> Files</div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('finput').click()">+ Add files</button></div>
+            <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()" style="padding:28px">
+              <span style="font-size:2rem">📎</span>
+              <h3>Drop PDFs or images</h3>
+              <p>Text is extracted from PDFs directly. Images use AI vision.</p>
+              <div class="drop-note">⚠️ If image text is misread, use the manual text area below to type/paste your notes instead.</div>
+            </div>
+            <input type="file" id="finput" style="display:none" multiple accept="image/*,.pdf">
+            <div class="file-list" id="file-list"></div>
+            <div class="actions-row">
+              <button class="btn btn-p btn-sm" id="extract-btn" onclick="runExtract()" disabled>Extract text</button>
+            </div>
+            <div class="hint-text" id="extract-hint">Upload files first.</div>
+          </div>
+
+          <!-- manual text -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title"><span class="dot dot-o"></span> Manual notes</div></div>
+            <p style="font-size:0.83rem;color:var(--ink3);margin-bottom:10px">Type or paste notes here — use this if the file extraction didn't work, or to add extra context.</p>
+            <textarea class="notes-area" id="manual-notes" placeholder="Type your notes here…" oninput="saveManualNotes()"></textarea>
+          </div>
+
+          <!-- settings -->
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title"><span class="dot dot-g"></span> Settings</div></div>
+            <div class="row2">
+              <div class="field"><label>Language</label>
+                <select id="lang-pick">
+                  <option value="keep">Keep original language</option>
+                  <option value="en">English</option><option value="fr">French</option>
+                  <option value="de">German</option><option value="es">Spanish</option>
+                  <option value="nl">Dutch</option><option value="it">Italian</option>
+                </select>
+              </div>
+              <div class="field"><label>Subject context (optional)</label><input type="text" id="ctx-input" placeholder="e.g. Chapter 3 – Cell division"></div>
+            </div>
+            <div class="field">
+              <label>Key definitions — one per line (click badge to toggle word-for-word vs just understand)</label>
+              <textarea id="defs-input" placeholder="e.g. Mitosis&#10;Photosynthesis&#10;ATP synthesis" style="min-height:72px" oninput="renderDefs()"></textarea>
+            </div>
+            <div id="defs-list"></div>
+          </div>
+
+          <button class="btn btn-p" id="summarise-btn" onclick="runSummarise()" disabled>⚡ Summarise with AI</button>
+          <div class="hint-text" id="summarise-hint">Extract text or add manual notes first.</div>
+        </div>
+
+        <!-- SUMMARY TAB -->
+        <div id="tt-summary" class="test-tab" style="display:none">
+          <div id="summary-empty" class="empty-state"><span class="em">✦</span><p>Go to Notes tab and hit Summarise.</p></div>
+          <div id="summary-content" style="display:none"></div>
+        </div>
+
+        <!-- PLAN TAB -->
+        <div id="tt-plan" class="test-tab" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-hd"><div class="card-title"><span class="dot"></span> Plan settings</div></div>
+            <div class="row3">
+              <div class="field"><label>Exam date</label><input type="date" id="plan-exam-date"></div>
+              <div class="field"><label>Study time/day</label>
+                <select id="plan-time">
+                  <option value="30">30 min</option><option value="60" selected>1 hour</option>
+                  <option value="90">1.5 hours</option><option value="120">2 hours</option>
+                </select>
+              </div>
+              <div class="field"><label>Weak spots</label><input type="text" id="plan-weak" placeholder="Optional"></div>
+            </div>
+            <button class="btn btn-p btn-sm" onclick="runPlan()">Generate plan</button>
+          </div>
+          <div id="plan-empty" class="empty-state" style="padding:24px 0"><span class="em">📅</span><p>Set the exam date and generate a plan.</p></div>
+          <div id="plan-content" style="display:none"></div>
+        </div>
+
+        <!-- CHAT TAB -->
+        <div id="tt-chat" class="test-tab" style="display:none">
+          <div class="chat-wrap" id="chat-wrap">
+            <div class="chat-msgs" id="chat-msgs">
+              <div class="msg ai">Hi! Ask me anything about this subject. I'll answer based on your notes.</div>
+            </div>
+            <div class="chat-input-area">
+              <input type="text" id="chat-in" placeholder="Ask a question about your notes…" onkeydown="if(event.key==='Enter')sendChat()">
+              <button class="btn btn-p btn-sm" onclick="sendChat()">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
-<!-- DAY MODAL -->
-<div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
-  <div class="modal" id="modal-inner">
-    <button class="modal-close" onclick="closeModalDirect()">✕ Close</button>
+<!-- MODAL (day detail + quiz + new test) -->
+<div class="overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
     <div id="modal-content"></div>
   </div>
 </div>
@@ -317,604 +435,732 @@ canvas#cvs{display:none}
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
-// ── State ──────────────────────────────────────────────────────────────────────
-let apiKey='', files=[], extracted={}, extractDone=false;
-let summaryResult=null, planDays=[], doneDays=new Set();
-let defModes={}; // term -> 'wfw' | 'understand'
-let notifGranted=false, notifScheduled=[];
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let apiKey = '';
+// tests: [{id, subject, examDate, notes:{files[], extracted{}, manualText, lang, ctx, defModes{}}, summary:{clean,points,topics}, plan:{days[]}, doneDays:Set, chatHistory:[]}]
+let tests = [];
+let currentTestId = null;
+let defModes = {}; // for current test being edited
+let uploadedFiles = []; // {name, type, file, dataUrl?, status, text?}
+let quizData = null, quizIdx = 0;
+let notifGranted = false, notifTimers = [];
 
-// ── Init ───────────────────────────────────────────────────────────────────────
-addEventListener('DOMContentLoaded',()=>{
-  const k=sessionStorage.getItem('nf_k');
-  if(k!==null){apiKey=k;boot();}
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+addEventListener('DOMContentLoaded', () => {
+  const k = sessionStorage.getItem('nf_k');
+  const savedTests = localStorage.getItem('nf_tests');
+  if (savedTests) try { tests = JSON.parse(savedTests); tests.forEach(t => { t.doneDays = new Set(t.doneDays||[]); }); } catch{}
+  if (k !== null) { apiKey = k; boot(); }
   setupDrop();
-  document.getElementById('examdate').min=new Date().toISOString().split('T')[0];
-  if('Notification' in window&&Notification.permission==='granted'){notifGranted=true;}
-  else if('Notification' in window&&Notification.permission!=='denied'){
-    document.getElementById('notif-bar').style.display='flex';
-  }
-  const saved=localStorage.getItem('nf_done');
-  if(saved){try{doneDays=new Set(JSON.parse(saved));}catch{}}
+  document.getElementById('plan-exam-date').min = new Date().toISOString().split('T')[0];
+  if ('Notification' in window && Notification.permission === 'granted') notifGranted = true;
 });
 
-function saveKey(ocrOnly){
-  if(!ocrOnly){
-    const k=document.getElementById('keyinput').value.trim();
-    if(!k.startsWith('gsk_')){toast('⚠️ Groq keys start with gsk_');return;}
-    apiKey=k;
-  } else {apiKey='';}
-  sessionStorage.setItem('nf_k',apiKey);
+function saveKey() {
+  const k = document.getElementById('keyinput').value.trim();
+  if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
+  apiKey = k;
+  sessionStorage.setItem('nf_k', k);
   boot();
 }
-function boot(){
-  document.getElementById('page-setup').classList.remove('active');
-  goPage('upload');
+
+function boot() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'grid';
+  updateApiStatus();
+  renderSidebar();
+  renderDashboard();
 }
 
-// ── Pages ──────────────────────────────────────────────────────────────────────
-function goPage(name){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
-  const pg=document.getElementById('page-'+name);
-  const nb=document.getElementById('nav-'+name);
-  if(pg)pg.classList.add('active');
-  if(nb)nb.classList.add('active');
+function updateApiStatus() {
+  const dot = document.getElementById('api-dot');
+  const txt = document.getElementById('api-status-txt');
+  if (apiKey) { dot.className = 'api-dot ok'; txt.textContent = 'Groq connected'; }
+  else { dot.className = 'api-dot'; txt.textContent = 'No API key'; }
 }
 
-// ── Definitions toggles ───────────────────────────────────────────────────────
-function renderDefs(){
-  const lines=document.getElementById('defsInput').value.split('\n').map(l=>l.trim()).filter(Boolean);
-  // init new ones
-  lines.forEach(l=>{if(!defModes[l])defModes[l]='wfw';});
-  const c=document.getElementById('defs-list');
-  if(!lines.length){c.innerHTML='';return;}
-  c.innerHTML=`<div style="background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px">`+
-    lines.map(l=>`<div class="def-row">
-      <div class="def-text">${esc(l)}</div>
-      <span class="def-badge ${defModes[l]==='wfw'?'wfw':'understand'}" onclick="toggleDef('${esc(l)}')" title="Click to toggle">
-        ${defModes[l]==='wfw'?'Word-for-word':'Just understand'}
-      </span>
-    </div>`).join('')+`</div>`;
+function saveTests() {
+  const toSave = tests.map(t => ({...t, doneDays: [...(t.doneDays||[])]}));
+  localStorage.setItem('nf_tests', JSON.stringify(toSave));
 }
-function toggleDef(term){
-  defModes[term]=defModes[term]==='wfw'?'understand':'wfw';
+
+// ── VIEWS ────────────────────────────────────────────────────────────────────
+function goView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name)?.classList.add('active');
+  document.getElementById('nav-' + name)?.classList.add('active');
+}
+
+function goTestView(testId) {
+  currentTestId = testId;
+  const t = getTest();
+  if (!t) return;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-test').classList.add('active');
+  document.getElementById('nav-test-' + testId)?.classList.add('active');
+
+  // populate header
+  document.getElementById('test-view-title').textContent = t.subject;
+  const days = daysUntil(t.examDate);
+  document.getElementById('test-view-sub').textContent = t.examDate
+    ? `Exam: ${fmtDate(t.examDate)} · ${days > 0 ? days + ' days left' : days === 0 ? 'Today!' : 'Exam passed'}`
+    : 'No exam date set';
+
+  // restore state
+  uploadedFiles = t.notes?.files || [];
+  defModes = t.notes?.defModes || {};
+  document.getElementById('manual-notes').value = t.notes?.manualText || '';
+  document.getElementById('defs-input').value = Object.keys(defModes).join('\n');
+  document.getElementById('lang-pick').value = t.notes?.lang || 'keep';
+  document.getElementById('ctx-input').value = t.notes?.ctx || '';
+  document.getElementById('plan-exam-date').value = t.examDate || '';
+
+  renderFileList();
   renderDefs();
+  updateExtractBtn();
+  updateSummariseBtn();
+
+  // restore summary
+  if (t.summary) {
+    document.getElementById('summary-empty').style.display = 'none';
+    document.getElementById('summary-content').style.display = 'block';
+    renderSummaryHTML(t.summary);
+  } else {
+    document.getElementById('summary-empty').style.display = 'block';
+    document.getElementById('summary-content').style.display = 'none';
+  }
+
+  // restore plan
+  if (t.plan?.days?.length) {
+    document.getElementById('plan-empty').style.display = 'none';
+    document.getElementById('plan-content').style.display = 'block';
+    renderPlanHTML(t.plan, t);
+  } else {
+    document.getElementById('plan-empty').style.display = 'block';
+    document.getElementById('plan-content').style.display = 'none';
+  }
+
+  // restore chat
+  const msgs = document.getElementById('chat-msgs');
+  msgs.innerHTML = '';
+  (t.chatHistory || []).forEach(m => appendMsg(m.content, m.role === 'user' ? 'user' : 'ai'));
+  if (!t.chatHistory?.length) appendMsg('Hi! Ask me anything about this subject. I\'ll answer based on your notes.', 'ai');
+
+  // show notes tab by default
+  goTestTab('notes', document.querySelector('.inner-tab'));
 }
 
-// ── Drop / Upload ──────────────────────────────────────────────────────────────
-document.getElementById('finput').addEventListener('change',e=>{handleFiles([...e.target.files]);e.target.value='';});
-function setupDrop(){
-  const z=document.getElementById('dropzone');
-  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
-  z.addEventListener('dragleave',()=>z.classList.remove('over'));
-  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');handleFiles([...e.dataTransfer.files]);});
+function goTestTab(name, el) {
+  document.querySelectorAll('.test-tab').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tt-' + name).style.display = 'block';
+  if (el) el.classList.add('active');
 }
-async function handleFiles(newf){
-  for(const f of newf){
-    if(files.length>=8){toast('Max 8 files');break;}
-    const isPDF=f.type==='application/pdf'||f.name.endsWith('.pdf');
-    const isImg=f.type.startsWith('image/');
-    if(!isPDF&&!isImg){toast('Only images and PDFs');continue;}
-    const dataUrl=isPDF?null:await toDataUrl(f);
-    files.push({name:f.name,type:isPDF?'pdf':'image',dataUrl,file:f});
+
+// ── SIDEBAR ────────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('test-nav-list');
+  list.innerHTML = '';
+  tests.forEach(t => {
+    const days = daysUntil(t.examDate);
+    const badge = t.examDate ? (days <= 3 ? `${days}d ⚠️` : `${days}d`) : '';
+    const btn = document.createElement('button');
+    btn.className = 'nav-item';
+    btn.id = 'nav-test-' + t.id;
+    btn.innerHTML = `<span class="ni-icon">📖</span><span class="ni-label">${esc(t.subject)}</span>${badge ? `<span class="ni-badge">${badge}</span>` : ''}`;
+    btn.onclick = () => goTestView(t.id);
+    list.appendChild(btn);
+  });
+}
+
+function renderDashboard() {
+  const c = document.getElementById('dashboard-content');
+  if (!tests.length) {
+    c.innerHTML = '<div class="empty-state"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> in the sidebar.</p></div>';
+    return;
   }
-  extracted={};extractDone=false;
-  renderThumbs();
-  document.getElementById('ocrbtn').disabled=files.length===0;
-  document.getElementById('aibtn').disabled=true;
-  document.getElementById('ocrbox').style.display='none';
-  updateHint();
+  const sorted = [...tests].sort((a,b) => new Date(a.examDate) - new Date(b.examDate));
+  c.innerHTML = `<div class="tests-grid">${sorted.map(t => {
+    const days = daysUntil(t.examDate);
+    const pts = t.summary?.points?.length || 0;
+    const done = [...(t.doneDays||[])].length;
+    const total = t.plan?.days?.length || 0;
+    const pct = total ? Math.round(done/total*100) : 0;
+    return `<div class="test-card" onclick="goTestView('${t.id}')">
+      <div class="test-card-subject">${esc(t.subject)}</div>
+      <div class="test-card-date">${t.examDate ? fmtDate(t.examDate) : 'No date set'}</div>
+      <div class="test-card-stats">
+        ${days >= 0 ? `<span class="stat-chip ${days<=3?'urgent':'ok'}">${days === 0 ? 'Today!' : days + ' days'}</span>` : '<span class="stat-chip">Past</span>'}
+        ${pts ? `<span class="stat-chip">${pts} points</span>` : ''}
+        ${total ? `<span class="stat-chip">${done}/${total} days done</span>` : ''}
+      </div>
+      ${total ? `<div class="test-card-bar"><div class="test-card-bar-fill" style="width:${pct}%"></div></div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
 }
-const toDataUrl=f=>new Promise(r=>{const rd=new FileReader();rd.onload=e=>r(e.target.result);rd.readAsDataURL(f);});
-function renderThumbs(){
-  const c=document.getElementById('thumbs');c.innerHTML='';
-  files.forEach((e,i)=>{
-    const d=document.createElement('div');d.className='thumb';d.id='th'+i;
-    d.innerHTML=e.type==='image'
-      ?`<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓':'...'}</div>`
-      :`<span style="font-size:1.8rem">📄</span><div class="thumb-lbl">${e.name}</div><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓':'...'}</div>`;
+
+function renderSchedule() {
+  const c = document.getElementById('schedule-content');
+  // collect all events
+  const events = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  tests.forEach(t => {
+    if (t.examDate) events.push({date: t.examDate, type: 'exam', label: t.subject + ' exam'});
+    (t.plan?.days||[]).forEach((d,i) => {
+      if (d.date) events.push({date: d.date, type: 'study', label: d.theme, sub: t.subject});
+    });
+  });
+
+  if (!events.length) { c.innerHTML = '<div class="empty-state"><span class="em">📆</span><p>Add tests and generate plans to see your schedule.</p></div>'; return; }
+
+  // build 21-day window
+  const days = [];
+  for (let i = 0; i < 21; i++) {
+    const d = new Date(today); d.setDate(d.getDate() + i);
+    days.push(d);
+  }
+
+  c.innerHTML = `<div class="cal-wrap"><div class="cal-grid">${days.map(d => {
+    const ds = d.toISOString().split('T')[0];
+    const isToday = ds === today.toISOString().split('T')[0];
+    const dayEvents = events.filter(e => e.date === ds);
+    return `<div class="cal-day ${isToday?'today':''} ${dayEvents.some(e=>e.type==='exam')?'exam-day':''}">
+      <div class="cal-date">${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</div>
+      ${dayEvents.map(e => `<div class="cal-event ${e.type}">${e.type==='exam'?'📝 ':'📖 '}${esc(e.label)}</div>`).join('')}
+    </div>`;
+  }).join('')}</div></div>`;
+}
+
+// ── NEW TEST MODAL ─────────────────────────────────────────────────────────────
+function openNewTest() {
+  openModal(`
+    <h2>New test</h2>
+    <div class="modal-sub">Add a subject and exam date.</div>
+    <div class="field"><label>Subject name</label><input type="text" id="new-subject" placeholder="e.g. Biology, Histoire, Mathe…" autofocus></div>
+    <div class="field"><label>Exam date (optional)</label><input type="date" id="new-date" min="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="actions-row">
+      <button class="btn btn-p" onclick="createTest()">Create →</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function createTest() {
+  const sub = document.getElementById('new-subject').value.trim();
+  if (!sub) { toast('⚠️ Enter a subject name'); return; }
+  const exam = document.getElementById('new-date').value;
+  const t = {
+    id: Date.now().toString(),
+    subject: sub, examDate: exam,
+    notes: {files:[], extracted:{}, manualText:'', lang:'keep', ctx:'', defModes:{}},
+    summary: null, plan: null,
+    doneDays: new Set(), chatHistory: []
+  };
+  tests.push(t);
+  saveTests();
+  closeModal();
+  renderSidebar();
+  renderDashboard();
+  goTestView(t.id);
+  toast('✓ Test created');
+}
+
+function deleteCurrentTest() {
+  const t = getTest();
+  if (!t) return;
+  if (!confirm(`Delete "${t.subject}"? This cannot be undone.`)) return;
+  tests = tests.filter(x => x.id !== currentTestId);
+  saveTests();
+  currentTestId = null;
+  uploadedFiles = [];
+  renderSidebar();
+  renderDashboard();
+  goView('dashboard');
+  toast('Deleted');
+}
+
+// ── FILES ─────────────────────────────────────────────────────────────────────
+function setupDrop() {
+  const z = document.getElementById('dropzone');
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('over'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); handleFiles([...e.dataTransfer.files]); });
+  document.getElementById('finput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value = ''; });
+}
+
+async function handleFiles(newf) {
+  for (const f of newf) {
+    if (uploadedFiles.length >= 8) { toast('Max 8 files'); break; }
+    const isPDF = f.type === 'application/pdf' || f.name.endsWith('.pdf');
+    const isImg = f.type.startsWith('image/');
+    if (!isPDF && !isImg) { toast('Only images and PDFs'); continue; }
+    const dataUrl = isImg ? await toDataUrl(f) : null;
+    uploadedFiles.push({ name: f.name, type: isPDF ? 'pdf' : 'image', file: f, dataUrl, status: 'pending', text: '' });
+  }
+  persistFiles();
+  renderFileList();
+  updateExtractBtn();
+}
+
+const toDataUrl = f => new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+
+function renderFileList() {
+  const c = document.getElementById('file-list'); c.innerHTML = '';
+  uploadedFiles.forEach((f, i) => {
+    const d = document.createElement('div'); d.className = 'file-row'; d.id = 'fr' + i;
+    d.innerHTML = `<span class="file-icon">${f.type==='pdf'?'📄':'🖼️'}</span>
+      <span class="file-name">${esc(f.name)}</span>
+      <span class="file-status ${f.status==='done'?'ok':f.status==='error'?'err':f.status==='running'?'run':''}" id="fst${i}">${f.status==='done'?'✓ done':f.status==='error'?'error':f.status==='running'?'reading…':'waiting'}</span>
+      <button class="file-rm" onclick="rmFile(${i})">✕</button>
+      <div class="file-progress" id="fp${i}"><div class="file-pbar" id="fpb${i}" style="width:0%"></div></div>`;
     c.appendChild(d);
   });
 }
-function rmFile(i){files.splice(i,1);extracted={};extractDone=false;renderThumbs();document.getElementById('ocrbtn').disabled=files.length===0;document.getElementById('aibtn').disabled=true;updateHint();}
-function updateHint(){
-  const h=document.getElementById('hint');
-  if(!files.length)h.textContent='Upload files to get started.';
-  else if(!extractDone)h.textContent='Files loaded ✓ — click "Extract Text"';
-  else if(!apiKey)h.textContent='Text extracted ✓ — add a Groq key to use AI';
-  else h.textContent='Text extracted ✓ — click "Summarise"';
+
+function rmFile(i) {
+  uploadedFiles.splice(i, 1);
+  persistFiles();
+  renderFileList();
+  updateExtractBtn();
 }
 
-// ── Image preprocessing ───────────────────────────────────────────────────────
-function preprocessImage(dataUrl){
-  return new Promise(resolve=>{
-    const img=new Image();
-    img.onload=()=>{
-      const cv=document.getElementById('cvs');
-      cv.width=img.width;cv.height=img.height;
-      const ctx=cv.getContext('2d');
-      ctx.drawImage(img,0,0);
-      const id=ctx.getImageData(0,0,cv.width,cv.height);
-      const d=id.data;
-      // grayscale
-      for(let i=0;i<d.length;i+=4){const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=g;}
-      // contrast stretch
-      let mn=255,mx=0;
-      for(let i=0;i<d.length;i+=4){mn=Math.min(mn,d[i]);mx=Math.max(mx,d[i]);}
-      const range=mx-mn||1;
-      for(let i=0;i<d.length;i+=4){let v=((d[i]-mn)/range)*255;v=v<128?Math.max(0,v-25):Math.min(255,v+25);d[i]=d[i+1]=d[i+2]=v;}
-      ctx.putImageData(id,0,0);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.src=dataUrl;
-  });
+function persistFiles() {
+  const t = getTest(); if (!t) return;
+  // store only metadata, not File objects (can't serialize)
+  t.notes.files = uploadedFiles.map(f => ({name:f.name,type:f.type,status:f.status,text:f.text,dataUrl:f.dataUrl}));
+  saveTests();
 }
 
-// ── PDF extraction ────────────────────────────────────────────────────────────
-async function extractPDF(file){
-  const buf=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-  let text='';
-  for(let p=1;p<=pdf.numPages;p++){
-    const page=await pdf.getPage(p);
-    const tc=await page.getTextContent();
-    text+=tc.items.map(i=>i.str).join(' ')+'\n';
+function updateExtractBtn() {
+  const btn = document.getElementById('extract-btn');
+  const hint = document.getElementById('extract-hint');
+  const pending = uploadedFiles.filter(f => f.status !== 'done').length;
+  btn.disabled = uploadedFiles.length === 0;
+  hint.textContent = uploadedFiles.length === 0 ? 'Upload files first.' : pending === 0 ? 'All files extracted ✓' : `${pending} file(s) not yet extracted.`;
+}
+
+function updateSummariseBtn() {
+  const t = getTest();
+  const hasText = uploadedFiles.some(f => f.text?.trim()) || (t?.notes?.manualText?.trim());
+  document.getElementById('summarise-btn').disabled = !hasText || !apiKey;
+  document.getElementById('summarise-hint').textContent = !apiKey ? 'Need a Groq key.' : !hasText ? 'Extract text or add manual notes first.' : 'Ready to summarise!';
+}
+
+// ── PDF EXTRACT ───────────────────────────────────────────────────────────────
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let text = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    text += tc.items.map(i => i.str).join(' ') + '\n';
   }
   return text.trim();
 }
 
-// ── Extract all ───────────────────────────────────────────────────────────────
-async function runExtract(){
-  if(!files.length)return;
-  const btn=document.getElementById('ocrbtn');
-  btn.disabled=true;btn.innerHTML='⏳ Extracting…';
-  document.getElementById('ocrbox').style.display='block';
-  const rows=document.getElementById('ocrrows');rows.innerHTML='';
-  files.forEach((e,i)=>{
-    rows.innerHTML+=`<div class="ocr-row"><div class="ocr-name">${e.name}</div><div class="bwrap"><div class="bbar" id="ob${i}" style="width:0%"></div></div><div class="ost pend" id="os${i}">waiting</div></div>`;
+// ── VISION OCR via Groq ───────────────────────────────────────────────────────
+async function extractImageVision(dataUrl) {
+  const base64 = dataUrl.split(',')[1];
+  const mimeMatch = dataUrl.match(/data:([^;]+);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    body: JSON.stringify({
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } },
+          { type: 'text', text: 'Transcribe ALL text visible in this image exactly as written. Include every word, formula, and symbol. Output only the transcribed text, nothing else.' }
+        ]
+      }]
+    })
   });
-  extracted={};
-  for(let i=0;i<files.length;i++){
-    const e=files[i];
-    const st=document.getElementById(`os${i}`),bar=document.getElementById(`ob${i}`);
-    st.textContent='working';st.className='ost run';
-    try{
-      if(e.type==='pdf'){
-        st.textContent='reading…';bar.style.width='40%';
-        extracted[e.name]=await extractPDF(e.file);
-        bar.style.width='100%';st.textContent='✓ done';st.className='ost done';
-      } else {
-        st.textContent='processing…';bar.style.width='10%';
-        const pre=await preprocessImage(e.dataUrl);
-        bar.style.width='20%';
-        const r=await Tesseract.recognize(pre,'eng+deu+fra',{logger:m=>{if(m.status==='recognizing text')bar.style.width=(20+m.progress*75)+'%';}});
-        extracted[e.name]=r.data.text;
-        bar.style.width='100%';st.textContent='✓ done';st.className='ost done';
-      }
-      const ts=document.getElementById('tst'+i);if(ts)ts.textContent='✓';
-    } catch(err){
-      st.textContent='error';toast('⚠️ Failed: '+e.name);
-    }
-  }
-  const all=Object.values(extracted).join('\n\n---\n\n');
-  document.getElementById('rawbox').textContent=all.slice(0,500)+(all.length>500?'…':'');
-  document.getElementById('rawwrap').style.display='block';
-  extractDone=true;
-  btn.innerHTML='🔍 Re-extract';btn.disabled=false;
-  document.getElementById('aibtn').disabled=!apiKey;
-  updateHint();toast('✓ Extraction done');
-}
-
-// ── AI Summary ────────────────────────────────────────────────────────────────
-async function runAI(){
-  if(!extractDone||!apiKey)return;
-  const subject=document.getElementById('subject').value.trim()||'General';
-  const lang=document.getElementById('lang').value;
-  const raw=Object.values(extracted).join('\n\n');
-  const defs=Object.entries(defModes);
-  const wfw=defs.filter(([,v])=>v==='wfw').map(([k])=>k);
-  const understand=defs.filter(([,v])=>v==='understand').map(([k])=>k);
-
-  const langInstr=lang==='keep'
-    ?'Keep the original language of the notes. Do NOT translate.'
-    :`Write your response in ${{'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian','pt':'Portuguese'}[lang]}.`;
-
-  goPage('results');
-  document.getElementById('res-empty').style.display='none';
-  document.getElementById('res-content').style.display='none';
-  document.getElementById('res-load').style.display='flex';
-  document.getElementById('loadtxt').textContent='Summarising with Groq…';
-
-  try{
-    const prompt=`You are a study assistant for the subject: "${subject}".
-
-LANGUAGE INSTRUCTION: ${langInstr}
-
-Raw extracted text from student notes (may have OCR noise):
-<notes>
-${raw.slice(0,12000)}
-</notes>
-
-${wfw.length?`These definitions must be learned WORD-FOR-WORD (exact wording matters): ${wfw.join(', ')}`:''} 
-${understand.length?`These just need to be UNDERSTOOD (no exact wording needed): ${understand.join(', ')}` :''}
-
-Your job:
-1. Clean up the notes into readable text.
-2. Extract learning points from the notes ONLY — do not add outside knowledge.
-3. For any definition marked word-for-word, include the exact definition from the notes if present.
-
-Respond ONLY with raw JSON (no markdown, no backticks):
-{
-  "clean": "Clean readable version of the notes.",
-  "points": [
-    {"text":"Learning point","type":"normal|wfw|understand","definition":"exact definition text if wfw, else null"}
-  ],
-  "topics": ["topic1","topic2"]
-}
-
-Rules: Extract ONLY what is in the notes. No extra explanations. No invented content. Keep it concise.`;
-
-    const text=await groq(prompt);
-    document.getElementById('res-load').style.display='none';
-    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
-    summaryResult=parsed;
-    document.getElementById('plansub').value=subject;
-    renderResults(parsed);
-  } catch(err){
-    document.getElementById('res-load').style.display='none';
-    document.getElementById('res-empty').style.display='block';
-    document.getElementById('res-empty').innerHTML=`<span class="em">❌</span><p>${err.message}</p>`;
-    toast('❌ '+err.message);
-  }
-}
-
-function renderResults(d){
-  document.getElementById('res-content').style.display='block';
-  const topics=(d.topics||[]).map(t=>`<span class="chip chip-p">${t}</span>`).join(' ');
-  const points=(d.points||[]).map((p,i)=>`
-    <li class="lp-item ${p.type==='wfw'?'wfw-item':''}">
-      <span class="lp-n" title="${p.type==='wfw'?'Word-for-word':p.type==='understand'?'Understand':'Normal'}">${String(i+1).padStart(2,'0')}</span>
-      <span>
-        ${p.type==='wfw'?`<span class="chip chip-o" style="margin-right:6px;font-size:0.65rem">word-for-word</span>`:''}
-        ${p.type==='understand'?`<span class="chip chip-g" style="margin-right:6px;font-size:0.65rem">understand</span>`:''}
-        ${esc(p.text)}
-        ${p.definition?`<div style="margin-top:6px;font-size:0.82rem;color:var(--txd);background:var(--s2);padding:8px 10px;border-radius:8px;border-left:2px solid var(--ac2)">${esc(p.definition)}</div>`:''}
-      </span>
-    </li>`).join('');
-
-  document.getElementById('res-content').innerHTML=`
-    <div style="margin-bottom:20px">
-      <div class="sec-title" style="font-size:1.3rem">Summary</div>
-      <div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap">${topics}</div>
-    </div>
-    <div class="card" style="margin-bottom:16px">
-      <div class="card-hd"><div class="ctitle"><span class="dot"></span> Clean Notes</div><button class="btn btn-g btn-sm" onclick="copyEl('cleannotes')">Copy</button></div>
-      <div style="font-size:0.89rem;line-height:1.8;white-space:pre-wrap;max-height:320px;overflow-y:auto;padding-right:4px" id="cleannotes">${esc(d.clean||'')}</div>
-    </div>
-    <div class="card">
-      <div class="card-hd"><div class="ctitle"><span class="dot dot-g"></span> Learning Points</div><span class="chip chip-g">${(d.points||[]).length}</span></div>
-      <ul class="lp-list">${points}</ul>
-    </div>
-    <div class="actions">
-      <button class="btn btn-p" onclick="goPage('plan')">📅 Build Study Plan</button>
-      <button class="btn btn-g" onclick="copyAll()">📋 Copy All</button>
-    </div>`;
-}
-
-// ── Study Plan ────────────────────────────────────────────────────────────────
-async function runPlan(){
-  if(!apiKey){toast('⚠️ Need a Groq key');return;}
-  const sub=document.getElementById('plansub').value.trim();
-  const exam=document.getElementById('examdate').value;
-  const extras=document.getElementById('extras').value.trim();
-  const mins=parseInt(document.getElementById('studytime').value);
-  if(!sub){toast('⚠️ Enter a subject');return;}
-  if(!exam){toast('⚠️ Enter exam date');return;}
-  const days=Math.ceil((new Date(exam)-new Date())/86400000);
-  if(days<1){toast('⚠️ Date must be in the future');return;}
-
-  document.getElementById('plan-empty').style.display='none';
-  document.getElementById('plan-content').style.display='none';
-  document.getElementById('plan-load').style.display='flex';
-
-  try{
-    const pointCount=(summaryResult?.points||[]).length;
-    const topics=(summaryResult?.topics||[]).join(', ');
-    const pointsList=(summaryResult?.points||[]).map((p,i)=>`${i+1}. [${p.type||'normal'}] ${p.text}`).join('\n');
-
-    const prompt=`Create a study plan for a student.
-Subject: ${sub}
-Days until exam: ${days}
-Minutes available per day: ${mins}
-Number of learning points to cover: ${pointCount||'unknown'}
-${topics?'Topics: '+topics:''}
-${pointsList?'Points to learn:\n'+pointsList:''}
-${extras?'Student notes: '+extras:''}
-
-The plan MUST be proportional to the actual content. If there are only a few points, don't make a 7-day plan — scale it to the material. Max ${Math.min(days,14)} days.
-
-Each day should have a clear focus and specific tasks that match the study time (${mins} min/day).
-
-Respond ONLY with raw JSON (no markdown, no backticks):
-{
-  "days": [
-    {
-      "label": "Day 1 – Mon 28 Apr",
-      "theme": "Short focus",
-      "pointIndexes": [0,1],
-      "tasks": [{"icon":"📖","task":"Specific task"}]
-    }
-  ],
-  "tips": ["Short tip"]
-}
-
-pointIndexes = which learning point indexes (0-based) to study that day. Only reference existing points.`;
-
-    const text=await groq(prompt);
-    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
-    planDays=parsed.days||[];
-    document.getElementById('plan-load').style.display='none';
-    renderPlan(parsed,days,sub,exam,mins);
-    scheduleReminders(parsed.days,sub);
-  } catch(err){
-    document.getElementById('plan-load').style.display='none';
-    document.getElementById('plan-empty').style.display='block';
-    toast('❌ '+err.message);
-  }
-}
-
-function renderPlan(d,days,sub,exam,mins){
-  document.getElementById('plan-content').style.display='block';
-  const examFmt=new Date(exam+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
-  const today=new Date().toDateString();
-
-  const grid=(d.days||[]).map((day,i)=>{
-    const isDone=doneDays.has(i);
-    const pts=(day.pointIndexes||[]).map(idx=>(summaryResult?.points||[])[idx]?.text).filter(Boolean);
-    return `<div class="day-card ${isDone?'done-day':''}" onclick="openDay(${i})" id="dc${i}">
-      <div class="dlbl">${day.label}</div>
-      <div class="dtheme">${day.theme}</div>
-      <div class="dtopics">${pts.slice(0,2).map(p=>p.length>40?p.slice(0,40)+'…':p).join('<br>')}</div>
-    </div>`;
-  }).join('');
-
-  const tips=(d.tips||[]).map(t=>`<div style="padding:9px 0;border-bottom:1px solid var(--br);font-size:0.85rem;color:var(--txd)">${t}</div>`).join('');
-
-  document.getElementById('plan-content').innerHTML=`
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-      <div>
-        <div class="sec-title" style="font-size:1.3rem">${sub} — ${days} day${days!==1?'s':''}</div>
-        <p style="color:var(--txd);font-size:0.84rem;margin-top:2px">Exam: ${examFmt} · ${mins} min/day</p>
-      </div>
-    </div>
-    <div class="plan-grid">${grid}</div>
-    ${tips?`<div class="card" style="margin-top:16px"><div class="card-hd" style="margin-bottom:10px"><div class="ctitle"><span class="dot dot-o"></span> Tips</div></div>${tips}</div>`:''}`;
-}
-
-// ── Day Modal ─────────────────────────────────────────────────────────────────
-let currentDayIdx=-1, quizData=null, quizIdx=0;
-
-async function openDay(idx){
-  currentDayIdx=idx;
-  const day=planDays[idx];
-  if(!day)return;
-  document.getElementById('modal').style.display='flex';
-  const pts=(day.pointIndexes||[]).map(i=>(summaryResult?.points||[])[i]).filter(Boolean);
-
-  const pointsHTML=pts.map((p,i)=>`
-    <div style="padding:10px 12px;background:var(--s2);border-radius:10px;margin-bottom:8px;border-left:3px solid ${p.type==='wfw'?'var(--ac2)':p.type==='understand'?'var(--ac3)':'var(--br)'}">
-      ${p.type==='wfw'?`<span class="chip chip-o" style="font-size:0.62rem;margin-bottom:4px;display:inline-flex">word-for-word</span><br>`:''}
-      <span style="font-size:0.88rem;line-height:1.6">${esc(p.text)}</span>
-      ${p.definition?`<div style="margin-top:6px;font-size:0.81rem;color:var(--txd);font-style:italic">"${esc(p.definition)}"</div>`:''}
-    </div>`).join('');
-
-  document.getElementById('modal-content').innerHTML=`
-    <h2>${day.theme}</h2>
-    <div class="modal-sub">${day.label} · ${(day.tasks||[]).length} tasks</div>
-    
-    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">What to study today</div>
-    ${pointsHTML||'<p style="color:var(--txd);font-size:0.86rem">No specific points assigned.</p>'}
-
-    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin:14px 0 10px">Tasks</div>
-    ${(day.tasks||[]).map(t=>`<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--br);font-size:0.86rem;color:var(--txd)"><span>${t.icon}</span><span>${t.task}</span></div>`).join('')}
-
-    <div style="margin-top:18px;display:flex;gap:9px;flex-wrap:wrap">
-      <button class="btn btn-p btn-sm" onclick="startQuiz(${idx})">🧠 Quiz me on this</button>
-      ${!doneDays.has(idx)?`<button class="btn btn-ok btn-sm" onclick="markDone(${idx})">✓ Mark as done</button>`:'<span style="color:var(--ok);font-size:0.85rem;align-self:center">✓ Completed</span>'}
-    </div>`;
-}
-
-async function startQuiz(idx){
-  const day=planDays[idx];
-  if(!day||!apiKey){toast('Need a Groq key for quiz');return;}
-  const pts=(day.pointIndexes||[]).map(i=>(summaryResult?.points||[])[i]).filter(Boolean);
-  if(!pts.length){toast('No specific points for this day');return;}
-
-  document.getElementById('modal-content').innerHTML=`<h2>Quiz — ${day.theme}</h2><div class="loading" style="padding:30px"><div class="spinner"></div><div class="ltxt">Generating questions…</div></div>`;
-
-  const ptsList=pts.map((p,i)=>`${i+1}. [${p.type}] ${p.text}${p.definition?' — Definition: '+p.definition:''}`).join('\n');
-
-  try{
-    const prompt=`Create a short quiz for these learning points:
-${ptsList}
-
-For word-for-word points, ask to recall the exact definition.
-For understand points, ask conceptual questions.
-
-Respond ONLY with raw JSON (no markdown):
-{
-  "questions": [
-    {
-      "q": "Question text",
-      "opts": ["A. Option","B. Option","C. Option","D. Option"],
-      "correct": 0,
-      "explain": "Brief explanation of the answer"
-    }
-  ]
-}
-Create ${Math.min(pts.length*2,6)} questions. Base them ONLY on the provided points.`;
-
-    const text=await groq(prompt);
-    quizData=JSON.parse(text.replace(/```json|```/g,'').trim());
-    quizIdx=0;
-    showQuizQuestion(idx);
-  } catch(err){
-    toast('❌ '+err.message);
-    openDay(idx);
-  }
-}
-
-function showQuizQuestion(dayIdx){
-  const day=planDays[dayIdx];
-  const qs=quizData?.questions||[];
-  if(quizIdx>=qs.length){
-    document.getElementById('modal-content').innerHTML=`
-      <h2>Quiz done! 🎉</h2>
-      <p style="color:var(--txd);margin:12px 0 20px;font-size:0.9rem">You went through all ${qs.length} questions for "${day.theme}".</p>
-      <div style="display:flex;gap:9px;flex-wrap:wrap">
-        <button class="btn btn-ok btn-sm" onclick="markDone(${dayIdx})">✓ Mark day as done</button>
-        <button class="btn btn-g btn-sm" onclick="openDay(${dayIdx})">← Back</button>
-      </div>`;
-    return;
-  }
-  const q=qs[quizIdx];
-  document.getElementById('modal-content').innerHTML=`
-    <h2>${day.theme}</h2>
-    <div class="modal-sub">Question ${quizIdx+1} of ${qs.length}</div>
-    <div class="quiz-q">${esc(q.q)}</div>
-    <div class="quiz-opts" id="qopts">
-      ${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="answerQuiz(${i},${q.correct},${dayIdx})">${esc(o)}</button>`).join('')}
-    </div>
-    <div id="qexplain" style="display:none" class="quiz-explain">${esc(q.explain||'')}</div>
-    <button class="btn btn-p btn-sm" id="qnext" style="display:none;margin-top:10px" onclick="quizIdx++;showQuizQuestion(${dayIdx})">Next →</button>`;
-}
-
-function answerQuiz(chosen, correct, dayIdx){
-  const opts=document.querySelectorAll('.quiz-opt');
-  opts.forEach((o,i)=>{
-    o.disabled=true;
-    if(i===correct)o.classList.add('correct');
-    else if(i===chosen)o.classList.add('wrong');
-  });
-  document.getElementById('qexplain').style.display='block';
-  document.getElementById('qnext').style.display='inline-flex';
-}
-
-function markDone(idx){
-  doneDays.add(idx);
-  localStorage.setItem('nf_done',JSON.stringify([...doneDays]));
-  const dc=document.getElementById('dc'+idx);
-  if(dc)dc.classList.add('done-day');
-  toast('✓ Day marked as done!');
-  closeModalDirect();
-}
-
-function closeModal(e){if(e.target.id==='modal')closeModalDirect();}
-function closeModalDirect(){document.getElementById('modal').style.display='none';}
-
-// ── Chat ──────────────────────────────────────────────────────────────────────
-let chatHistory=[];
-
-async function sendChat(){
-  if(!apiKey){toast('⚠️ Need a Groq key');return;}
-  const inp=document.getElementById('chat-in');
-  const msg=inp.value.trim();
-  if(!msg)return;
-  inp.value='';
-
-  appendMsg(msg,'user');
-  chatHistory.push({role:'user',content:msg});
-
-  const thinking=appendMsg('Thinking…','ai thinking');
-
-  const notes=summaryResult?.clean||Object.values(extracted).join('\n\n')||'No notes loaded yet.';
-  const systemMsg=`You are a study assistant. Answer questions based ONLY on the following student notes. If the answer is not in the notes, say so. Be concise.
-
-NOTES:
-${notes.slice(0,10000)}`;
-
-  try{
-    const messages=[{role:'user',content:systemMsg+'\n\nStudent question: '+chatHistory.map(m=>m.content).join('\n')}];
-    const text=await groq(messages[0].content);
-    thinking.textContent=text;
-    thinking.classList.remove('thinking');
-    chatHistory.push({role:'assistant',content:text});
-  } catch(err){
-    thinking.textContent='Error: '+err.message;
-  }
-
-  const msgs=document.getElementById('chat-msgs');
-  msgs.scrollTop=msgs.scrollHeight;
-}
-
-function appendMsg(text,cls){
-  const msgs=document.getElementById('chat-msgs');
-  const d=document.createElement('div');
-  d.className='msg '+cls;
-  d.textContent=text;
-  msgs.appendChild(d);
-  msgs.scrollTop=msgs.scrollHeight;
-  return d;
-}
-
-// ── Notifications ─────────────────────────────────────────────────────────────
-async function requestNotifs(){
-  if(!('Notification' in window)){toast('Browser notifications not supported');return;}
-  const perm=await Notification.requestPermission();
-  if(perm==='granted'){
-    notifGranted=true;
-    document.getElementById('notif-bar').style.display='none';
-    toast('✓ Reminders enabled!');
-  } else {
-    toast('Notifications blocked in browser settings');
-  }
-}
-
-function scheduleReminders(days){
-  if(!notifGranted||!days?.length)return;
-  notifScheduled.forEach(t=>clearTimeout(t));
-  notifScheduled=[];
-  const now=new Date();
-  days.forEach((day,i)=>{
-    // Schedule for next day at 9am if day label mentions it
-    const target=new Date(now);
-    target.setDate(target.getDate()+i+1);
-    target.setHours(9,0,0,0);
-    const delay=target-now;
-    if(delay>0){
-      const t=setTimeout(()=>{
-        new Notification('NoteFlow — Time to study!',{
-          body:`Today: ${day.theme}`,
-          icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📝</text></svg>'
-        });
-      },delay);
-      notifScheduled.push(t);
-    }
-  });
-  if(notifGranted&&days.length)toast(`🔔 ${Math.min(days.length,14)} reminders scheduled`);
-}
-
-// ── Groq ──────────────────────────────────────────────────────────────────────
-async function groq(prompt){
-  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-    body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4000,temperature:0.15,messages:[{role:'user',content:prompt}]})
-  });
-  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||'Groq error '+r.status);}
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message||'Vision error'); }
   return (await r.json()).choices[0].message.content;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent||'');toast('✓ Copied');}
-function copyAll(){
-  if(!summaryResult)return;
-  const t=['=== NOTES ===\n'+summaryResult.clean,'\n=== LEARNING POINTS ===\n'+(summaryResult.points||[]).map((p,i)=>`${i+1}. [${p.type}] ${p.text}${p.definition?'\n   "'+p.definition+'"':''}`).join('\n')].join('\n');
-  navigator.clipboard.writeText(t);toast('✓ Copied');
+async function runExtract() {
+  const btn = document.getElementById('extract-btn');
+  btn.disabled = true; btn.textContent = 'Extracting…';
+
+  for (let i = 0; i < uploadedFiles.length; i++) {
+    const f = uploadedFiles[i];
+    if (f.status === 'done') continue;
+    f.status = 'running';
+    document.getElementById(`fst${i}`).textContent = 'reading…';
+    document.getElementById(`fst${i}`).className = 'file-status run';
+    const fp = document.getElementById('fp'+i); if(fp) fp.style.display='block';
+
+    try {
+      let text = '';
+      if (f.type === 'pdf') {
+        text = await extractPDF(f.file);
+      } else {
+        if (!apiKey) throw new Error('Need Groq key for image extraction');
+        text = await extractImageVision(f.dataUrl);
+      }
+      f.text = text;
+      f.status = 'done';
+      document.getElementById(`fst${i}`).textContent = '✓ done';
+      document.getElementById(`fst${i}`).className = 'file-status ok';
+      if(fp) fp.style.display='none';
+    } catch(err) {
+      f.status = 'error';
+      document.getElementById(`fst${i}`).textContent = 'error';
+      document.getElementById(`fst${i}`).className = 'file-status err';
+      toast('⚠️ '+f.name+': '+err.message);
+    }
+  }
+
+  persistFiles();
+  btn.textContent = 'Extract text'; btn.disabled = false;
+  updateExtractBtn(); updateSummariseBtn();
+  toast('✓ Extraction done');
 }
+
+// ── MANUAL NOTES ──────────────────────────────────────────────────────────────
+function saveManualNotes() {
+  const t = getTest(); if (!t) return;
+  t.notes.manualText = document.getElementById('manual-notes').value;
+  saveTests();
+  updateSummariseBtn();
+}
+
+// ── DEFINITIONS ───────────────────────────────────────────────────────────────
+function renderDefs() {
+  const lines = document.getElementById('defs-input').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  lines.forEach(l => { if (!defModes[l]) defModes[l] = 'wfw'; });
+  const t = getTest(); if(t) { t.notes.defModes = {...defModes}; saveTests(); }
+  const c = document.getElementById('defs-list');
+  if (!lines.length) { c.innerHTML=''; return; }
+  c.innerHTML = `<div style="background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:12px;margin-top:8px">`+
+    lines.map(l=>`<div class="def-item">
+      <span class="def-term">${esc(l)}</span>
+      <button class="def-toggle ${defModes[l]==='wfw'?'wfw':'know'}" onclick="toggleDef('${esc(l)}')">${defModes[l]==='wfw'?'Word-for-word':'Just understand'}</button>
+    </div>`).join('')+'</div>';
+}
+
+function toggleDef(term) {
+  defModes[term] = defModes[term]==='wfw' ? 'know' : 'wfw';
+  renderDefs();
+}
+
+// ── SUMMARISE ─────────────────────────────────────────────────────────────────
+async function runSummarise() {
+  const t = getTest(); if (!t || !apiKey) return;
+  const lang = document.getElementById('lang-pick').value;
+  const ctx = document.getElementById('ctx-input').value.trim();
+  t.notes.lang = lang; t.notes.ctx = ctx;
+
+  const fileTexts = uploadedFiles.filter(f=>f.text?.trim()).map(f=>`[${f.name}]\n${f.text}`).join('\n\n');
+  const manualText = document.getElementById('manual-notes').value.trim();
+  const raw = [fileTexts, manualText].filter(Boolean).join('\n\n');
+  if (!raw.trim()) { toast('No text to summarise'); return; }
+
+  const wfw = Object.entries(defModes).filter(([,v])=>v==='wfw').map(([k])=>k);
+  const know = Object.entries(defModes).filter(([,v])=>v==='know').map(([k])=>k);
+  const langStr = lang === 'keep' ? 'Keep the EXACT original language of the notes. Do NOT translate anything.'
+    : `Write everything in ${({'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian'})[lang]}.`;
+
+  goTestTab('summary', document.querySelectorAll('.inner-tab')[1]);
+  document.getElementById('summary-empty').style.display = 'none';
+  document.getElementById('summary-content').style.display = 'block';
+  document.getElementById('summary-content').innerHTML = '<div class="section-loading"><div class="spinner"></div><span>Summarising…</span></div>';
+
+  try {
+    const prompt = `You are a study assistant for subject: "${t.subject}"${ctx?` (${ctx})`:''}.\n\nLANGUAGE: ${langStr}\n\nNOTES:\n<notes>\n${raw.slice(0,14000)}\n</notes>\n\n${wfw.length?`MUST learn word-for-word: ${wfw.join(', ')}`:''}${know.length?`\nJust need to understand: ${know.join(', ')}`:''}
+
+Extract ONLY what is in the notes. Do not add outside knowledge. Respond ONLY with raw JSON:
+{"clean":"Clean readable version of the notes, well structured.","points":[{"text":"Learning point","type":"normal|wfw|know","definition":"exact wording from notes if wfw, else null"}],"topics":["topic"]}
+
+Rules: points should cover everything important. wfw points include the exact definition from the notes. Keep it concise.`;
+
+    const resp = await groqText(prompt);
+    const parsed = JSON.parse(resp.replace(/```json|```/g,'').trim());
+    t.summary = parsed;
+    document.getElementById('plan-exam-date').value = t.examDate || '';
+    saveTests();
+    renderSummaryHTML(parsed);
+    toast('✓ Summary ready');
+  } catch(err) {
+    document.getElementById('summary-content').innerHTML = `<div class="empty-state"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
+    toast('❌ '+err.message);
+  }
+}
+
+function renderSummaryHTML(d) {
+  const topics = (d.topics||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(' ');
+  const points = (d.points||[]).map((p,i)=>`<li class="lp-item ${p.type==='wfw'?'lp-wfw':''}">
+    <span class="lp-n">${String(i+1).padStart(2,'0')}</span>
+    <span>${p.type==='wfw'?`<span class="tag tag-wfw">word-for-word</span>`:p.type==='know'?`<span class="tag tag-know">understand</span>`:''}${esc(p.text)}${p.definition?`<div class="lp-def">"${esc(p.definition)}"</div>`:''}</span>
+  </li>`).join('');
+
+  document.getElementById('summary-content').innerHTML = `
+    <div style="margin-bottom:18px">${topics}</div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-hd"><div class="card-title"><span class="dot"></span> Clean notes</div><button class="btn btn-ghost btn-sm" onclick="cpEl('clean-notes-txt')">Copy</button></div>
+      <div style="font-size:0.88rem;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto" id="clean-notes-txt">${esc(d.clean||'')}</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title"><span class="dot dot-g"></span> Learning points</div><span class="chip">${(d.points||[]).length} points</span></div>
+      <ul class="lp-list">${points}</ul>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-p btn-sm" onclick="goTestTab('plan',document.querySelectorAll('.inner-tab')[2])">→ Build study plan</button>
+    </div>`;
+}
+
+// ── PLAN ─────────────────────────────────────────────────────────────────────
+async function runPlan() {
+  const t = getTest(); if (!t || !apiKey) return;
+  const exam = document.getElementById('plan-exam-date').value;
+  const mins = document.getElementById('plan-time').value;
+  const weak = document.getElementById('plan-weak').value.trim();
+  if (!exam) { toast('⚠️ Set an exam date'); return; }
+
+  t.examDate = exam; saveTests();
+  const days = daysUntil(exam);
+  if (days < 1) { toast('⚠️ Exam date must be in the future'); return; }
+
+  document.getElementById('plan-empty').style.display = 'none';
+  document.getElementById('plan-content').style.display = 'block';
+  document.getElementById('plan-content').innerHTML = '<div class="section-loading"><div class="spinner"></div><span>Building plan…</span></div>';
+
+  const pts = (t.summary?.points||[]);
+  const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}`).join('\n');
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  try {
+    const prompt = `Create a study plan for a student.
+Subject: ${t.subject}, Days until exam: ${days}, Study time per day: ${mins} minutes
+${ptsList?'Points to cover:\n'+ptsList:''}
+${weak?'Weak spots: '+weak:''}
+
+Scale the plan to the actual content — if there are few points, make fewer days. Max ${Math.min(days,14)} days.
+Each day assign specific point indexes from the list above.
+Give each day a real date starting from tomorrow.
+
+Respond ONLY with raw JSON (no markdown):
+{"days":[{"label":"Mon 28 Apr","date":"2026-04-28","theme":"Short focus","pointIndexes":[0,1],"tasks":[{"icon":"📖","task":"task"}]}],"tips":["tip"]}`;
+
+    const resp = await groqText(prompt);
+    const parsed = JSON.parse(resp.replace(/```json|```/g,'').trim());
+    t.plan = parsed;
+    t.doneDays = new Set();
+    saveTests();
+    renderPlanHTML(parsed, t);
+    renderSidebar(); renderDashboard(); renderSchedule();
+    toast('✓ Plan ready');
+  } catch(err) {
+    document.getElementById('plan-content').innerHTML = `<div class="empty-state"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
+    toast('❌ '+err.message);
+  }
+}
+
+function renderPlanHTML(plan, t) {
+  const days = (plan.days||[]);
+  const done = t.doneDays||new Set();
+  const pct = days.length ? Math.round([...done].length/days.length*100) : 0;
+
+  const grid = days.map((d,i) => {
+    const pts = (d.pointIndexes||[]).map(idx => t.summary?.points?.[idx]?.text).filter(Boolean);
+    return `<div class="plan-day ${done.has(i)?'done':''}" onclick="openDayModal(${i})">
+      <div class="pd-lbl">${esc(d.label)}</div>
+      <div class="pd-theme">${esc(d.theme)}</div>
+      <div class="pd-pts">${pts.slice(0,2).map(p=>p.length>45?p.slice(0,45)+'…':p).join('<br>')}</div>
+    </div>`;
+  }).join('');
+
+  const tips = (plan.tips||[]).map(tip=>`<div style="padding:8px 0;border-bottom:1px solid var(--br);font-size:0.84rem;color:var(--ink3)">${esc(tip)}</div>`).join('');
+
+  document.getElementById('plan-content').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:500">${esc(t.subject)}</div>
+        <div style="font-size:0.8rem;color:var(--ink3);margin-top:2px">${days.length} study days · ${[...done].length} done</div>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ac)">${pct}% complete</div>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>
+    <div class="plan-days" style="margin-top:16px">${grid}</div>
+    ${tips?`<div class="card" style="margin-top:16px"><div class="card-hd" style="margin-bottom:8px"><div class="card-title"><span class="dot dot-o"></span> Tips</div></div>${tips}</div>`:''}`;
+}
+
+// ── DAY MODAL ─────────────────────────────────────────────────────────────────
+let activeDayIdx = -1;
+
+function openDayModal(idx) {
+  activeDayIdx = idx;
+  const t = getTest(); if (!t) return;
+  const day = t.plan?.days?.[idx]; if (!day) return;
+  const pts = (day.pointIndexes||[]).map(i => t.summary?.points?.[i]).filter(Boolean);
+  const isDone = (t.doneDays||new Set()).has(idx);
+
+  const ptsHTML = pts.map(p=>`<div style="padding:10px 12px;background:var(--s2);border-radius:9px;margin-bottom:7px;border-left:3px solid ${p.type==='wfw'?'var(--ac2)':p.type==='know'?'var(--ok)':'var(--br)'}">
+    ${p.type==='wfw'?`<span class="tag tag-wfw" style="margin-bottom:4px;display:inline-block">word-for-word</span><br>`:''}
+    <span style="font-size:0.87rem;line-height:1.6">${esc(p.text)}</span>
+    ${p.definition?`<div style="margin-top:5px;font-size:0.8rem;color:var(--ink3);font-style:italic">"${esc(p.definition)}"</div>`:''}
+  </div>`).join('');
+
+  const tasksHTML = (day.tasks||[]).map(t=>`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--br);font-size:0.85rem;color:var(--ink2)"><span>${t.icon}</span><span>${esc(t.task)}</span></div>`).join('');
+
+  openModal(`
+    <h2>${esc(day.theme)}</h2>
+    <div class="modal-sub">${esc(day.label)}</div>
+    <div class="modal-section">
+      <div class="modal-section-title">What to study</div>
+      ${ptsHTML||'<p style="color:var(--ink3);font-size:0.84rem">No specific points assigned.</p>'}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Tasks</div>
+      ${tasksHTML}
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-p btn-sm" onclick="startQuiz(${idx})">🧠 Quiz me</button>
+      ${!isDone
+        ? `<button class="btn btn-ghost btn-sm" style="color:var(--ok);border-color:rgba(39,105,79,0.4)" onclick="markDone(${idx})">✓ Mark done</button>`
+        : `<span style="color:var(--ok);font-size:0.85rem;align-self:center">✓ Completed</span>`}
+    </div>`);
+}
+
+async function startQuiz(idx) {
+  const t = getTest(); if (!t || !apiKey) return;
+  const day = t.plan?.days?.[idx]; if (!day) return;
+  const pts = (day.pointIndexes||[]).map(i => t.summary?.points?.[i]).filter(Boolean);
+  if (!pts.length) { toast('No points assigned for this day'); return; }
+
+  document.getElementById('modal-content').innerHTML = `<h2>Quiz — ${esc(day.theme)}</h2><div class="section-loading" style="padding:30px"><div class="spinner"></div><span>Generating questions…</span></div>`;
+
+  try {
+    const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}${p.definition?' — "'+p.definition+'"':''}`).join('\n');
+    const prompt = `Create a quiz for these learning points:\n${ptsList}\n\nFor word-for-word points: ask the student to recall the exact definition.\nFor understand/normal points: ask conceptual questions.\n\nRespond ONLY with raw JSON:\n{"questions":[{"q":"question","opts":["A. option","B. option","C. option","D. option"],"correct":0,"explain":"brief explanation"}]}\n\nCreate ${Math.min(pts.length*2,6)} questions. Only based on the given points.`;
+
+    const resp = await groqText(prompt);
+    quizData = JSON.parse(resp.replace(/```json|```/g,'').trim());
+    quizIdx = 0;
+    showQuizQ(idx);
+  } catch(err) {
+    toast('❌ '+err.message);
+    openDayModal(idx);
+  }
+}
+
+function showQuizQ(dayIdx) {
+  const day = getTest()?.plan?.days?.[dayIdx];
+  const qs = quizData?.questions||[];
+  if (quizIdx >= qs.length) {
+    document.getElementById('modal-content').innerHTML = `
+      <h2>Done! 🎉</h2>
+      <p style="color:var(--ink3);margin:10px 0 18px;font-size:0.88rem">Went through all ${qs.length} questions for "${esc(day?.theme||'')}".</p>
+      <div class="actions-row">
+        <button class="btn btn-ghost btn-sm" style="color:var(--ok);border-color:rgba(39,105,79,0.4)" onclick="markDone(${dayIdx})">✓ Mark day done</button>
+        <button class="btn btn-ghost btn-sm" onclick="openDayModal(${dayIdx})">← Back</button>
+      </div>`;
+    return;
+  }
+  const q = qs[quizIdx];
+  document.getElementById('modal-content').innerHTML = `
+    <h2>${esc(day?.theme||'Quiz')}</h2>
+    <div class="modal-sub">Question ${quizIdx+1} of ${qs.length}</div>
+    <div class="quiz-q">${esc(q.q)}</div>
+    <div class="quiz-opts">${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="answerQ(${i},${q.correct},${dayIdx})">${esc(o)}</button>`).join('')}</div>
+    <div id="qexp" style="display:none" class="quiz-exp">${esc(q.explain||'')}</div>
+    <button class="btn btn-p btn-sm" id="qnext" style="display:none" onclick="quizIdx++;showQuizQ(${dayIdx})">Next →</button>`;
+}
+
+function answerQ(chosen, correct, dayIdx) {
+  document.querySelectorAll('.quiz-opt').forEach((o,i)=>{ o.disabled=true; if(i===correct)o.classList.add('correct'); else if(i===chosen)o.classList.add('wrong'); });
+  document.getElementById('qexp').style.display='block';
+  document.getElementById('qnext').style.display='inline-flex';
+}
+
+function markDone(idx) {
+  const t = getTest(); if (!t) return;
+  if (!t.doneDays) t.doneDays = new Set();
+  t.doneDays.add(idx);
+  saveTests();
+  renderPlanHTML(t.plan, t);
+  renderDashboard();
+  closeModal();
+  toast('✓ Day marked as done!');
+}
+
+// ── CHAT ─────────────────────────────────────────────────────────────────────
+async function sendChat() {
+  if (!apiKey) { toast('⚠️ Need a Groq key'); return; }
+  const t = getTest(); if (!t) return;
+  const inp = document.getElementById('chat-in');
+  const msg = inp.value.trim(); if (!msg) return;
+  inp.value = '';
+
+  if (!t.chatHistory) t.chatHistory = [];
+  t.chatHistory.push({role:'user',content:msg});
+  appendMsg(msg, 'user');
+  const thinking = appendMsg('Thinking…', 'ai thinking');
+  document.getElementById('chat-msgs').scrollTop = 9999;
+
+  const notes = t.summary?.clean || Object.values(t.notes?.extracted||{}).join('\n\n') || t.notes?.manualText || '';
+  const history = t.chatHistory.slice(-8).map(m=>`${m.role==='user'?'Student':'Assistant'}: ${m.content}`).join('\n');
+
+  try {
+    const prompt = `You are a study assistant for "${t.subject}". Answer questions based ONLY on the student's notes below. If not in the notes, say so. Be concise.\n\nNOTES:\n${notes.slice(0,10000)}\n\nConversation:\n${history}\n\nAnswer the last student question:`;
+    const resp = await groqText(prompt);
+    thinking.textContent = resp;
+    thinking.classList.remove('thinking');
+    t.chatHistory.push({role:'assistant',content:resp});
+    saveTests();
+  } catch(err) {
+    thinking.textContent = '❌ '+err.message;
+  }
+  document.getElementById('chat-msgs').scrollTop = 9999;
+}
+
+function appendMsg(text, cls) {
+  const c = document.getElementById('chat-msgs');
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  c.appendChild(d);
+  return d;
+}
+
+// ── MODAL HELPERS ─────────────────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+// ── GROQ API ─────────────────────────────────────────────────────────────────
+async function groqText(prompt) {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4000,temperature:0.15,messages:[{role:'user',content:prompt}]})
+  });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message||'Groq error '+r.status); }
+  return (await r.json()).choices[0].message.content;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function getTest() { return tests.find(t => t.id === currentTestId) || null; }
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function daysUntil(dateStr) { if (!dateStr) return null; const d = new Date(dateStr+'T12:00:00'); const now = new Date(); now.setHours(0,0,0,0); return Math.ceil((d-now)/86400000); }
+function fmtDate(s) { return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function cpEl(id) { navigator.clipboard.writeText(document.getElementById(id)?.textContent||''); toast('✓ Copied'); }
+
 let _tt;
-function toast(m){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>e.classList.remove('show'),3000);}
+function toast(m) { const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),3000); }
+
+// wire up schedule tab to auto-render
+document.getElementById('nav-schedule').addEventListener('click', renderSchedule);
 </script>
 </body>
 </html>
