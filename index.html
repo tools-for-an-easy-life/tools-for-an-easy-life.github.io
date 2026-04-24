@@ -11,221 +11,303 @@
 :root{--bg:#0d0d10;--s1:#141418;--s2:#1c1c22;--s3:#252530;--br:#2a2a38;--brb:#3d3d52;--ac:#7c6af7;--ac2:#f7a26a;--ac3:#6af7c4;--tx:#e8e8f0;--txd:#9090a8;--txdd:#5a5a70;--ok:#6af7a2;--err:#f76a6a}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--s2)}::-webkit-scrollbar-thumb{background:var(--brb);border-radius:2px}
 
-header{display:flex;align-items:center;justify-content:space-between;padding:18px 36px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:100}
-.logo{font-family:'Instrument Serif',serif;font-size:1.6rem;letter-spacing:-0.02em}
+/* NAV */
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--br);background:var(--s1);position:sticky;top:0;z-index:200}
+.logo{font-family:'Instrument Serif',serif;font-size:1.5rem;letter-spacing:-0.02em;cursor:pointer}
 .logo span{color:var(--ac)}
-.badge{font-family:'DM Mono',monospace;font-size:0.68rem;padding:4px 10px;border-radius:20px;border:1px solid var(--br);color:var(--txdd)}
+nav{display:flex;gap:4px}
+.navbtn{padding:8px 16px;border-radius:10px;border:none;background:transparent;color:var(--txd);font-family:'Bricolage Grotesque',sans-serif;font-size:0.85rem;font-weight:500;cursor:pointer;transition:all 0.2s}
+.navbtn:hover{color:var(--tx);background:var(--s2)}
+.navbtn.active{background:var(--ac);color:#fff;font-weight:600}
+.navbtn:disabled{opacity:0.3;cursor:not-allowed}
 
-/* setup */
-#setup{max-width:520px;margin:64px auto 80px;padding:0 24px}
-.setup-hero{text-align:center;margin-bottom:32px}
-.setup-hero h2{font-family:'Instrument Serif',serif;font-size:2.3rem;margin-bottom:10px;letter-spacing:-0.02em}
-.setup-hero p{color:var(--txd);line-height:1.7;font-size:0.9rem}
-.info{background:rgba(106,247,196,0.07);border:1px solid rgba(106,247,196,0.2);border-radius:12px;padding:12px 16px;font-size:0.82rem;color:var(--ac3);line-height:1.6;margin-bottom:20px}
-label{display:block;font-size:0.78rem;color:var(--txd);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
-input[type=password],input[type=text],input[type=date],textarea{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 15px;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s}
-input:focus,textarea:focus{border-color:var(--ac)}
+/* PAGES */
+.page{display:none;max-width:1000px;margin:0 auto;padding:36px 24px 80px}
+.page.active{display:block}
+#page-setup{max-width:520px}
+
+/* SETUP */
+.setup-hero{text-align:center;margin-bottom:28px}
+.setup-hero h2{font-family:'Instrument Serif',serif;font-size:2.2rem;margin-bottom:8px}
+.setup-hero p{color:var(--txd);font-size:0.9rem;line-height:1.6}
+.info-box{background:rgba(106,247,196,0.07);border:1px solid rgba(106,247,196,0.2);border-radius:12px;padding:12px 16px;font-size:0.82rem;color:var(--ac3);line-height:1.6;margin-bottom:18px}
+.info-box a{color:var(--ac3)}
+
+/* FORMS */
+label{display:block;font-size:0.76rem;color:var(--txd);margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
+input[type=password],input[type=text],input[type=date],textarea,select{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 15px;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s}
+input:focus,textarea:focus,select:focus{border-color:var(--ac)}
+select option{background:var(--s2)}
 textarea{resize:vertical}
-.field{margin-bottom:18px}
+.field{margin-bottom:16px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:600px){.row2,.row3{grid-template-columns:1fr}}
 
-/* app */
-#app{display:none;max-width:1100px;margin:0 auto;padding:36px 24px 80px}
-.tabs{display:flex;gap:4px;margin-bottom:32px;background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:6px;width:fit-content}
-.tab{padding:10px 22px;border-radius:10px;border:none;background:transparent;color:var(--txd);font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;transition:all 0.2s}
-.tab:hover{color:var(--tx);background:var(--s2)}
-.tab.active{background:var(--ac);color:#fff;font-weight:600}
-.panel{display:none}
-.panel.active{display:block}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:11px;border:none;font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.btn-p{background:var(--ac);color:#fff}.btn-p:hover{background:#6a57e0;transform:translateY(-1px)}.btn-p:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.btn-w{background:var(--ac2);color:#1a0800}.btn-w:hover{background:#e8924e;transform:translateY(-1px)}.btn-w:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+.btn-g{background:var(--s2);color:var(--txd);border:1px solid var(--br)}.btn-g:hover{background:var(--s3);color:var(--tx)}
+.btn-ok{background:rgba(106,247,162,0.15);color:var(--ok);border:1px solid rgba(106,247,162,0.3)}.btn-ok:hover{background:rgba(106,247,162,0.25)}
+.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:8px}
+.btn-xs{padding:5px 10px;font-size:0.75rem;border-radius:7px}
+.full-btn{width:100%;justify-content:center}
 
-/* upload */
-.drop{border:2px dashed var(--br);border-radius:20px;padding:52px 40px;text-align:center;background:var(--s1);transition:all 0.3s;cursor:pointer;position:relative;overflow:hidden}
-.drop::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07) 0%,transparent 70%);pointer-events:none}
+/* UPLOAD */
+.drop{border:2px dashed var(--br);border-radius:18px;padding:48px 32px;text-align:center;background:var(--s1);transition:all 0.3s;cursor:pointer;position:relative}
+.drop::before{content:'';position:absolute;inset:0;border-radius:18px;background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,0.07),transparent 70%);pointer-events:none}
 .drop:hover,.drop.over{border-color:var(--ac);background:var(--s2)}
-.drop h3{font-family:'Instrument Serif',serif;font-size:1.4rem;margin:14px 0 6px}
-.drop p{color:var(--txd);font-size:0.86rem}
+.drop h3{font-family:'Instrument Serif',serif;font-size:1.35rem;margin:12px 0 6px}
+.drop p{color:var(--txd);font-size:0.85rem}
 #finput{display:none}
 
-.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:18px}
-.thumb{position:relative;border-radius:11px;overflow:hidden;border:2px solid var(--br);aspect-ratio:3/4;background:var(--s2);display:flex;align-items:center;justify-content:center}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:16px}
+.thumb{position:relative;border-radius:10px;overflow:hidden;border:2px solid var(--br);aspect-ratio:3/4;background:var(--s2);display:flex;flex-direction:column;align-items:center;justify-content:center}
 .thumb img{width:100%;height:100%;object-fit:cover}
-.thumb .rm{position:absolute;top:5px;right:5px;background:rgba(0,0,0,0.75);border:none;color:#fff;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:0.7rem;display:flex;align-items:center;justify-content:center}
-.thumb-lbl{font-size:0.68rem;font-family:'DM Mono',monospace;color:var(--txd);padding:8px;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.thumb-st{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);padding:4px 6px;font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--ac3);text-align:center}
+.thumb .rm{position:absolute;top:5px;right:5px;background:rgba(0,0,0,0.75);border:none;color:#fff;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:0.68rem;display:flex;align-items:center;justify-content:center}
+.thumb-lbl{font-size:0.65rem;font-family:'DM Mono',monospace;color:var(--txd);padding:6px;text-align:center;word-break:break-all}
+.thumb-st{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.75);padding:4px;font-size:0.62rem;font-family:'DM Mono',monospace;color:var(--ac3);text-align:center}
 
-/* ocr box */
-.ocr-box{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:20px;margin-top:18px}
-.ocr-lbl{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.08em}
-.ocr-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--br)}
+/* OCR PROGRESS */
+.ocrbox{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:18px;margin-top:16px}
+.ocr-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--br)}
 .ocr-row:last-of-type{border-bottom:none}
-.ocr-name{flex:1;font-size:0.8rem;color:var(--txd);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bar-wrap{width:100px;background:var(--s3);border-radius:4px;height:5px;overflow:hidden}
-.bar{height:100%;background:var(--ac);border-radius:4px;transition:width 0.2s}
-.ocr-st{font-size:0.7rem;font-family:'DM Mono',monospace;min-width:52px;text-align:right}
-.ocr-st.done{color:var(--ok)}
-.ocr-st.run{color:var(--ac)}
-.ocr-st.pend{color:var(--txdd)}
-.ocr-st.skip{color:var(--ac3)}
+.ocr-name{flex:1;font-size:0.78rem;color:var(--txd);font-family:'DM Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bwrap{width:90px;background:var(--s3);border-radius:3px;height:4px;overflow:hidden}
+.bbar{height:100%;background:var(--ac);border-radius:3px;transition:width 0.2s}
+.ost{font-size:0.68rem;font-family:'DM Mono',monospace;min-width:48px;text-align:right}
+.ost.done{color:var(--ok)}.ost.run{color:var(--ac)}.ost.pend{color:var(--txdd)}
 
-.raw-box{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px;font-family:'DM Mono',monospace;font-size:0.78rem;line-height:1.7;color:var(--txd);max-height:140px;overflow-y:auto;white-space:pre-wrap;margin-top:12px}
+/* DEFINITIONS TABLE */
+.def-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--br)}
+.def-row:last-child{border-bottom:none}
+.def-text{font-size:0.87rem;color:var(--tx)}
+.def-badge{font-family:'DM Mono',monospace;font-size:0.68rem;padding:3px 8px;border-radius:20px;cursor:pointer;border:1px solid;transition:all 0.2s;white-space:nowrap}
+.def-badge.wfw{background:rgba(247,162,106,0.15);color:var(--ac2);border-color:rgba(247,162,106,0.3)}
+.def-badge.understand{background:rgba(106,247,196,0.1);color:var(--ac3);border-color:rgba(106,247,196,0.25)}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;border-radius:11px;border:none;font-family:'Bricolage Grotesque',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;transition:all 0.2s}
-.btn-p{background:var(--ac);color:#fff}
-.btn-p:hover{background:#6a57e0;transform:translateY(-1px)}
-.btn-p:disabled{opacity:0.35;cursor:not-allowed;transform:none}
-.btn-w{background:var(--ac2);color:#1a0f00}
-.btn-w:hover{background:#e8924e;transform:translateY(-1px)}
-.btn-w:disabled{opacity:0.35;cursor:not-allowed;transform:none}
-.btn-g{background:var(--s2);color:var(--txd);border:1px solid var(--br)}
-.btn-g:hover{background:var(--s3);color:var(--tx)}
-.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:8px}
+/* CARDS */
+.card{background:var(--s1);border:1px solid var(--br);border-radius:16px;padding:22px}
+.card+.card{margin-top:16px}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ctitle{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:7px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0}
+.dot-g{background:var(--ac3)!important}.dot-o{background:var(--ac2)!important}
 
-/* results */
-.card{background:var(--s1);border:1px solid var(--br);border-radius:18px;padding:26px}
-.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.ctitle{font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:8px}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--ac)}
-.dot-g{background:var(--ac3)!important}
-
-.trans{font-size:0.91rem;line-height:1.85;color:var(--tx);white-space:pre-wrap;max-height:360px;overflow-y:auto;padding-right:6px}
-.trans::-webkit-scrollbar{width:3px}
-.trans::-webkit-scrollbar-thumb{background:var(--brb);border-radius:2px}
-
+/* LEARNING POINTS */
 .lp-list{list-style:none}
-.lp-item{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--br);font-size:0.88rem;line-height:1.65;align-items:flex-start}
+.lp-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--br);font-size:0.87rem;line-height:1.6;align-items:flex-start}
 .lp-item:last-child{border-bottom:none}
-.lp-n{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--ac);background:rgba(124,106,247,0.12);border-radius:6px;padding:2px 6px;min-width:26px;text-align:center;margin-top:2px;flex-shrink:0}
+.lp-n{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);background:rgba(124,106,247,0.12);border-radius:5px;padding:2px 6px;min-width:24px;text-align:center;margin-top:2px;flex-shrink:0}
+.lp-item.wfw-item .lp-n{background:rgba(247,162,106,0.15);color:var(--ac2)}
 
-/* plan */
-.plan-setup{background:var(--s1);border:1px solid var(--br);border-radius:18px;padding:26px;margin-bottom:22px}
-.plan-form{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end;margin-bottom:14px}
-@media(max-width:600px){.plan-form{grid-template-columns:1fr}}
-.timeline{}
-.pday{display:grid;grid-template-columns:64px 1fr;margin-bottom:0}
-.dm{display:flex;flex-direction:column;align-items:center;padding-right:18px}
-.ddot{width:12px;height:12px;border-radius:50%;background:var(--ac);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--ac);flex-shrink:0;margin-top:4px}
-.dline{width:2px;background:var(--br);flex:1;margin-top:5px;margin-bottom:-2px;min-height:18px}
-.dcontent{background:var(--s1);border:1px solid var(--br);border-radius:13px;padding:16px;margin-bottom:13px}
-.dlbl{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
-.dtitle{font-weight:600;margin-bottom:8px;font-size:0.96rem}
-.dtasks{list-style:none}
-.dtask{display:flex;gap:8px;align-items:flex-start;padding:5px 0;font-size:0.86rem;color:var(--txd);border-bottom:1px solid var(--br)}
-.dtask:last-child{border-bottom:none}
+/* PLAN */
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:4px}
+.day-card{background:var(--s2);border:1px solid var(--br);border-radius:13px;padding:16px;cursor:pointer;transition:all 0.2s;position:relative}
+.day-card:hover{border-color:var(--ac);background:var(--s3);transform:translateY(-2px)}
+.day-card.done-day{border-color:var(--ok);background:rgba(106,247,162,0.05)}
+.day-card.done-day::after{content:'✓';position:absolute;top:10px;right:12px;color:var(--ok);font-size:0.9rem;font-weight:700}
+.day-card.today-day{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.dlbl{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px}
+.dtheme{font-weight:600;font-size:0.92rem;margin-bottom:8px}
+.dtopics{font-size:0.78rem;color:var(--txd);line-height:1.5}
 
-/* misc */
-.spinner{width:36px;height:36px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin 0.8s linear infinite}
+/* DAY MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:var(--s1);border:1px solid var(--brb);border-radius:20px;width:100%;max-width:640px;max-height:85vh;overflow-y:auto;padding:28px;position:relative}
+.modal-close{position:absolute;top:16px;right:16px;background:var(--s2);border:none;color:var(--txd);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.85rem}
+.modal h2{font-family:'Instrument Serif',serif;font-size:1.5rem;margin-bottom:4px}
+.modal-sub{color:var(--txd);font-size:0.85rem;margin-bottom:20px}
+
+/* QUIZ */
+.quiz-q{font-size:1rem;font-weight:600;line-height:1.6;margin-bottom:18px;padding:16px;background:var(--s2);border-radius:12px;border-left:3px solid var(--ac)}
+.quiz-opts{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.quiz-opt{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 16px;cursor:pointer;font-size:0.88rem;text-align:left;color:var(--tx);font-family:'Bricolage Grotesque',sans-serif;transition:all 0.2s}
+.quiz-opt:hover:not(:disabled){border-color:var(--ac);background:var(--s3)}
+.quiz-opt.correct{border-color:var(--ok);background:rgba(106,247,162,0.1);color:var(--ok)}
+.quiz-opt.wrong{border-color:var(--err);background:rgba(247,106,106,0.1);color:var(--err)}
+.quiz-opt:disabled{cursor:default}
+.quiz-explain{font-size:0.84rem;color:var(--txd);padding:12px;background:var(--s2);border-radius:10px;margin-bottom:14px;line-height:1.6;border-left:3px solid var(--brb)}
+
+/* CHAT */
+.chat-wrap{display:flex;flex-direction:column;height:420px}
+.chat-msgs{flex:1;overflow-y:auto;padding:4px 0;display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.msg{max-width:82%;padding:11px 15px;border-radius:14px;font-size:0.88rem;line-height:1.6}
+.msg.user{align-self:flex-end;background:var(--ac);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:var(--s2);color:var(--tx);border-bottom-left-radius:4px}
+.msg.ai.thinking{color:var(--txdd);font-style:italic}
+.chat-input-row{display:flex;gap:8px}
+.chat-input-row input{flex:1}
+
+/* MISC */
+.spinner{width:34px;height:34px;border:3px solid var(--br);border-top-color:var(--ac);border-radius:50%;animation:spin 0.8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px;gap:18px}
-.ltxt{font-family:'DM Mono',monospace;font-size:0.8rem;color:var(--txdd);animation:pulse 2s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:0.45}50%{opacity:1}}
+.loading{display:flex;flex-direction:column;align-items:center;padding:52px;gap:16px}
+.ltxt{font-family:'DM Mono',monospace;font-size:0.78rem;color:var(--txdd);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
 
-.empty{text-align:center;padding:48px 20px;color:var(--txdd)}
-.empty .em{font-size:2.4rem;margin-bottom:10px;display:block}
-.empty p{font-size:0.87rem;line-height:1.6}
+.empty{text-align:center;padding:44px 20px;color:var(--txdd)}
+.empty .em{font-size:2.2rem;margin-bottom:10px;display:block}
+.empty p{font-size:0.86rem;line-height:1.6}
 
-.hint{margin-top:9px;font-size:0.75rem;color:var(--txdd);font-family:'DM Mono',monospace}
-.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
-.chip{display:inline-flex;padding:3px 10px;border-radius:20px;font-size:0.72rem;font-family:'DM Mono',monospace}
+.chip{display:inline-flex;padding:3px 9px;border-radius:20px;font-size:0.7rem;font-family:'DM Mono',monospace}
 .chip-p{background:rgba(124,106,247,0.14);color:var(--ac)}
 .chip-g{background:rgba(106,247,196,0.14);color:var(--ac3)}
+.chip-o{background:rgba(247,162,106,0.14);color:var(--ac2)}
 
-.stitle{font-family:'Instrument Serif',serif;font-size:1.7rem;margin-bottom:6px;letter-spacing:-0.02em}
-.ssub{color:var(--txd);font-size:0.87rem;margin-bottom:24px}
-
-#toast{position:fixed;bottom:26px;right:26px;background:var(--s3);border:1px solid var(--brb);border-radius:11px;padding:12px 17px;font-size:0.85rem;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.3s;max-width:300px}
+.actions{display:flex;gap:9px;margin-top:18px;flex-wrap:wrap}
+.hint{margin-top:8px;font-size:0.73rem;color:var(--txdd);font-family:'DM Mono',monospace}
+.sec-title{font-family:'Instrument Serif',serif;font-size:1.6rem;margin-bottom:6px}
+.sec-sub{color:var(--txd);font-size:0.86rem;margin-bottom:22px}
+.notif-bar{background:rgba(124,106,247,0.1);border:1px solid rgba(124,106,247,0.25);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:var(--txd);display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.divider{height:1px;background:var(--br);margin:20px 0}
+#toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--brb);border-radius:10px;padding:11px 16px;font-size:0.84rem;z-index:9999;transform:translateY(60px);opacity:0;transition:all 0.3s;max-width:280px}
 #toast.show{transform:translateY(0);opacity:1}
-
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}
-@media(max-width:700px){.two-col{grid-template-columns:1fr}}
-.full{grid-column:1/-1}
+canvas#cvs{display:none}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">Note<span>Flow</span></div>
-  <span class="badge">Free · PDF + Images</span>
+  <div class="logo" onclick="goPage('upload')">Note<span>Flow</span></div>
+  <nav>
+    <button class="navbtn active" id="nav-upload" onclick="goPage('upload')">📄 Notes</button>
+    <button class="navbtn" id="nav-results" onclick="goPage('results')">✦ Summary</button>
+    <button class="navbtn" id="nav-plan" onclick="goPage('plan')">📅 Plan</button>
+    <button class="navbtn" id="nav-chat" onclick="goPage('chat')">💬 Chat</button>
+  </nav>
 </header>
 
-<!-- SETUP -->
-<div id="setup">
+<!-- SETUP PAGE -->
+<div class="page active" id="page-setup" style="max-width:520px">
   <div class="setup-hero">
-    <span style="font-size:3rem;display:block;margin-bottom:16px">📝</span>
+    <span style="font-size:2.8rem;display:block;margin-bottom:14px">📝</span>
     <h2>NoteFlow</h2>
-    <p>Upload your notes (photos or PDFs). Get clean learning points and a study plan. No fluff.</p>
+    <p>Upload notes. Get learning points and a study plan. No fluff.</p>
   </div>
-  <div class="info">🆓 OCR runs in your browser — free, no quota. You need a free <strong>Groq</strong> key for the AI summary + study plan.<br>Get one at <a href="https://console.groq.com" target="_blank" style="color:var(--ac3)">console.groq.com</a> — no credit card.</div>
-  <div class="field">
-    <label>Groq API Key (starts with gsk_)</label>
-    <input type="password" id="keyinput" placeholder="gsk_...">
-  </div>
-  <button class="btn btn-p" onclick="saveKey(false)" style="width:100%;justify-content:center">Start →</button>
-  <button class="btn btn-g" onclick="saveKey(true)" style="width:100%;justify-content:center;margin-top:9px">OCR only (no AI)</button>
+  <div class="info-box">🆓 OCR runs in your browser — free & private. You need a free <strong>Groq</strong> key for AI features.<br>Get one at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.</div>
+  <div class="field"><label>Groq API Key (starts with gsk_)</label><input type="password" id="keyinput" placeholder="gsk_..."></div>
+  <button class="btn btn-p full-btn" onclick="saveKey(false)">Start →</button>
+  <button class="btn btn-g full-btn" onclick="saveKey(true)" style="margin-top:8px">OCR only (no AI)</button>
 </div>
 
-<!-- APP -->
-<div id="app">
-  <div class="tabs">
-    <button class="tab active" onclick="goTab('upload',this)">📄 Notes</button>
-    <button class="tab" onclick="goTab('results',this)">✦ Summary</button>
-    <button class="tab" onclick="goTab('plan',this)">📅 Study Plan</button>
+<!-- UPLOAD PAGE -->
+<div class="page" id="page-upload">
+  <div class="sec-title">Upload notes</div>
+  <div class="sec-sub">Photos or PDFs. OCR runs in your browser — no API, no quota.</div>
+
+  <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()">
+    <span style="font-size:2.6rem">📎</span>
+    <h3>Drop files here</h3>
+    <p>Images (JPG/PNG) or PDF · up to 8 files</p>
+    <input type="file" id="finput" multiple accept="image/*,.pdf">
+  </div>
+  <div class="thumbs" id="thumbs"></div>
+  <div class="ocrbox" id="ocrbox" style="display:none">
+    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.08em">Extraction progress</div>
+    <div id="ocrrows"></div>
+    <div id="rawwrap" style="display:none">
+      <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);margin:12px 0 5px;text-transform:uppercase;letter-spacing:0.08em">Raw preview</div>
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:9px;padding:12px;font-family:'DM Mono',monospace;font-size:0.76rem;line-height:1.65;color:var(--txd);max-height:120px;overflow-y:auto;white-space:pre-wrap" id="rawbox"></div>
+    </div>
   </div>
 
-  <!-- UPLOAD TAB -->
-  <div id="tab-upload" class="panel active">
-    <div class="stitle">Upload your notes</div>
-    <div class="ssub">Photos of handwritten notes or PDF files. The text gets extracted locally — nothing is uploaded for OCR.</div>
+  <div class="divider"></div>
+  <div style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px">Settings</div>
 
-    <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()">
-      <span style="font-size:2.8rem">📎</span>
-      <h3>Drop files here</h3>
-      <p>Images (JPG, PNG) or PDF · up to 8 files</p>
-      <input type="file" id="finput" multiple accept="image/*,.pdf">
+  <div class="row2" style="margin-bottom:14px">
+    <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="subject" placeholder="e.g. Biology, Mathe…"></div>
+    <div class="field" style="margin:0">
+      <label>Language</label>
+      <select id="lang">
+        <option value="keep">Keep original language</option>
+        <option value="en">Translate to English</option>
+        <option value="fr">Translate to French</option>
+        <option value="de">Translate to German</option>
+        <option value="es">Translate to Spanish</option>
+        <option value="nl">Translate to Dutch</option>
+        <option value="it">Translate to Italian</option>
+        <option value="pt">Translate to Portuguese</option>
+      </select>
     </div>
+  </div>
 
-    <div class="thumbs" id="thumbs"></div>
-    <div class="ocr-box" id="ocrbox" style="display:none">
-      <div class="ocr-lbl">Extraction progress</div>
-      <div id="ocrrows"></div>
-      <div id="rawwrap" style="display:none">
-        <div class="ocr-lbl" style="margin-top:14px">Raw extracted text (preview)</div>
-        <div class="raw-box" id="rawbox"></div>
+  <div class="field">
+    <label>Important definitions — one per line (toggle word-for-word vs just understand)</label>
+    <textarea id="defsInput" placeholder="e.g. Mitosis&#10;ATP synthesis&#10;Photosynthesis" style="min-height:80px" oninput="renderDefs()"></textarea>
+  </div>
+  <div id="defs-list" style="margin-bottom:16px"></div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-p" id="ocrbtn" onclick="runExtract()" disabled>🔍 Extract Text</button>
+    <button class="btn btn-w" id="aibtn" onclick="runAI()" disabled>⚡ Summarise</button>
+  </div>
+  <div class="hint" id="hint">Upload files to get started.</div>
+</div>
+
+<!-- RESULTS PAGE -->
+<div class="page" id="page-results">
+  <div id="res-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt" id="loadtxt">Working…</div></div>
+  <div id="res-empty" class="empty"><span class="em">📄</span><p>Upload notes, extract text, then summarise.</p></div>
+  <div id="res-content" style="display:none"></div>
+</div>
+
+<!-- PLAN PAGE -->
+<div class="page" id="page-plan">
+  <div class="sec-title">Study plan</div>
+  <div class="sec-sub">Set your exam date. The plan is sized to your actual material — not a fixed template.</div>
+
+  <div id="notif-bar" class="notif-bar" style="display:none">
+    <span>🔔 Enable browser reminders to get notified when to study</span>
+    <button class="btn btn-p btn-sm" onclick="requestNotifs()">Enable</button>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="row3">
+      <div class="field" style="margin:0"><label>Subject</label><input type="text" id="plansub" placeholder="e.g. Biology"></div>
+      <div class="field" style="margin:0"><label>Exam date</label><input type="date" id="examdate"></div>
+      <div class="field" style="margin:0"><label>Study time per day</label>
+        <select id="studytime">
+          <option value="30">30 min/day</option>
+          <option value="60" selected>1 hour/day</option>
+          <option value="90">1.5 hours/day</option>
+          <option value="120">2 hours/day</option>
+        </select>
       </div>
     </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:22px 0 18px">
-      <div class="field" style="margin:0"><label>Subject / Fach</label><input type="text" id="subject" placeholder="e.g. Biology, Mathe…"></div>
-      <div class="field" style="margin:0"><label>Context (optional)</label><input type="text" id="ctx" placeholder="e.g. Chapter 3 – DNA"></div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn btn-p" id="ocrbtn" onclick="runExtract()" disabled>🔍 Extract Text</button>
-      <button class="btn btn-w" id="aibtn" onclick="runAI()" disabled>⚡ Summarise with AI</button>
-    </div>
-    <div class="hint" id="hint">Upload files to get started.</div>
+    <div class="field" style="margin-top:12px;margin-bottom:0"><label>Weak spots (optional)</label><textarea id="extras" style="min-height:56px" placeholder="e.g. Still confused about photosynthesis…"></textarea></div>
+    <div style="margin-top:14px"><button class="btn btn-p" onclick="runPlan()">Generate plan</button></div>
   </div>
 
-  <!-- RESULTS TAB -->
-  <div id="tab-results" class="panel">
-    <div id="res-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt" id="loadtxt">Working…</div></div>
-    <div id="res-empty" class="empty"><span class="em">📄</span><p>Upload notes, extract text, then hit Summarise.</p></div>
-    <div id="res-content" style="display:none"></div>
-  </div>
+  <div id="plan-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt">Building your plan…</div></div>
+  <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in subject and exam date above.</p></div>
+  <div id="plan-content" style="display:none"></div>
+</div>
 
-  <!-- PLAN TAB -->
-  <div id="tab-plan" class="panel">
-    <div class="stitle">Study plan</div>
-    <div class="ssub">Set your exam date and get a day-by-day plan built from your notes.</div>
-    <div class="plan-setup">
-      <div class="plan-form">
-        <div class="field" style="margin:0"><label>Subject</label><input type="text" id="plansub" placeholder="e.g. Biologie"></div>
-        <div class="field" style="margin:0"><label>Exam date</label><input type="date" id="examdate"></div>
-        <button class="btn btn-p" onclick="runPlan()">Generate</button>
+<!-- CHAT PAGE -->
+<div class="page" id="page-chat">
+  <div class="sec-title">Ask about your notes</div>
+  <div class="sec-sub">Ask anything about the material you uploaded.</div>
+  <div class="card">
+    <div class="chat-wrap">
+      <div class="chat-msgs" id="chat-msgs">
+        <div class="msg ai">Hi! Ask me anything about your notes. I'll only answer based on what's in them.</div>
       </div>
-      <div class="field" style="margin:0"><label>Weak spots / extra focus (optional)</label><textarea id="extras" style="min-height:64px" placeholder="e.g. Struggle with photosynthesis…"></textarea></div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-in" placeholder="Ask a question…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn btn-p btn-sm" onclick="sendChat()">Send</button>
+      </div>
     </div>
-    <div id="plan-load" style="display:none" class="loading"><div class="spinner"></div><div class="ltxt">Building your plan…</div></div>
-    <div id="plan-empty" class="empty"><span class="em">📅</span><p>Fill in the subject and exam date above.</p></div>
-    <div id="plan-content" style="display:none"></div>
+  </div>
+</div>
+
+<!-- DAY MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModal(event)">
+  <div class="modal" id="modal-inner">
+    <button class="modal-close" onclick="closeModalDirect()">✕ Close</button>
+    <div id="modal-content"></div>
   </div>
 </div>
 
@@ -233,408 +315,602 @@ textarea{resize:vertical}
 <canvas id="cvs" style="display:none"></canvas>
 
 <script>
-// pdf.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 // ── State ──────────────────────────────────────────────────────────────────────
-let apiKey = '';
-let files = [];       // {name, type:'image'|'pdf', dataUrl?, file}
-let extracted = {};   // name -> text
-let extractDone = false;
-let summaryResult = null;
+let apiKey='', files=[], extracted={}, extractDone=false;
+let summaryResult=null, planDays=[], doneDays=new Set();
+let defModes={}; // term -> 'wfw' | 'understand'
+let notifGranted=false, notifScheduled=[];
 
 // ── Init ───────────────────────────────────────────────────────────────────────
-addEventListener('DOMContentLoaded', () => {
-  const k = sessionStorage.getItem('nf_k');
-  if (k !== null) { apiKey = k; boot(); }
+addEventListener('DOMContentLoaded',()=>{
+  const k=sessionStorage.getItem('nf_k');
+  if(k!==null){apiKey=k;boot();}
   setupDrop();
-  document.getElementById('examdate').min = new Date().toISOString().split('T')[0];
+  document.getElementById('examdate').min=new Date().toISOString().split('T')[0];
+  if('Notification' in window&&Notification.permission==='granted'){notifGranted=true;}
+  else if('Notification' in window&&Notification.permission!=='denied'){
+    document.getElementById('notif-bar').style.display='flex';
+  }
+  const saved=localStorage.getItem('nf_done');
+  if(saved){try{doneDays=new Set(JSON.parse(saved));}catch{}}
 });
 
-function saveKey(ocrOnly) {
-  if (!ocrOnly) {
-    const k = document.getElementById('keyinput').value.trim();
-    if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
-    apiKey = k;
-  } else { apiKey = ''; }
-  sessionStorage.setItem('nf_k', apiKey);
+function saveKey(ocrOnly){
+  if(!ocrOnly){
+    const k=document.getElementById('keyinput').value.trim();
+    if(!k.startsWith('gsk_')){toast('⚠️ Groq keys start with gsk_');return;}
+    apiKey=k;
+  } else {apiKey='';}
+  sessionStorage.setItem('nf_k',apiKey);
   boot();
 }
-function boot() { document.getElementById('setup').style.display='none'; document.getElementById('app').style.display='block'; }
+function boot(){
+  document.getElementById('page-setup').classList.remove('active');
+  goPage('upload');
+}
 
-// ── Tabs ───────────────────────────────────────────────────────────────────────
-function goTab(name, el) {
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  el.classList.add('active');
+// ── Pages ──────────────────────────────────────────────────────────────────────
+function goPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  const pg=document.getElementById('page-'+name);
+  const nb=document.getElementById('nav-'+name);
+  if(pg)pg.classList.add('active');
+  if(nb)nb.classList.add('active');
+}
+
+// ── Definitions toggles ───────────────────────────────────────────────────────
+function renderDefs(){
+  const lines=document.getElementById('defsInput').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  // init new ones
+  lines.forEach(l=>{if(!defModes[l])defModes[l]='wfw';});
+  const c=document.getElementById('defs-list');
+  if(!lines.length){c.innerHTML='';return;}
+  c.innerHTML=`<div style="background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px">`+
+    lines.map(l=>`<div class="def-row">
+      <div class="def-text">${esc(l)}</div>
+      <span class="def-badge ${defModes[l]==='wfw'?'wfw':'understand'}" onclick="toggleDef('${esc(l)}')" title="Click to toggle">
+        ${defModes[l]==='wfw'?'Word-for-word':'Just understand'}
+      </span>
+    </div>`).join('')+`</div>`;
+}
+function toggleDef(term){
+  defModes[term]=defModes[term]==='wfw'?'understand':'wfw';
+  renderDefs();
 }
 
 // ── Drop / Upload ──────────────────────────────────────────────────────────────
-document.getElementById('finput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
-function setupDrop() {
-  const z = document.getElementById('dropzone');
-  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
-  z.addEventListener('dragleave', () => z.classList.remove('over'));
-  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); handleFiles([...e.dataTransfer.files]); });
+document.getElementById('finput').addEventListener('change',e=>{handleFiles([...e.target.files]);e.target.value='';});
+function setupDrop(){
+  const z=document.getElementById('dropzone');
+  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('over');});
+  z.addEventListener('dragleave',()=>z.classList.remove('over'));
+  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('over');handleFiles([...e.dataTransfer.files]);});
 }
-
-async function handleFiles(newf) {
-  for (const f of newf) {
-    if (files.length >= 8) { toast('Max 8 files'); break; }
-    const isPDF = f.type === 'application/pdf' || f.name.endsWith('.pdf');
-    const isImg = f.type.startsWith('image/');
-    if (!isPDF && !isImg) { toast('Only images and PDFs'); continue; }
-    const dataUrl = isPDF ? null : await toDataUrl(f);
-    files.push({ name: f.name, type: isPDF ? 'pdf' : 'image', dataUrl, file: f });
+async function handleFiles(newf){
+  for(const f of newf){
+    if(files.length>=8){toast('Max 8 files');break;}
+    const isPDF=f.type==='application/pdf'||f.name.endsWith('.pdf');
+    const isImg=f.type.startsWith('image/');
+    if(!isPDF&&!isImg){toast('Only images and PDFs');continue;}
+    const dataUrl=isPDF?null:await toDataUrl(f);
+    files.push({name:f.name,type:isPDF?'pdf':'image',dataUrl,file:f});
   }
-  extracted = {}; extractDone = false;
+  extracted={};extractDone=false;
   renderThumbs();
-  document.getElementById('ocrbtn').disabled = files.length === 0;
-  document.getElementById('aibtn').disabled = true;
-  document.getElementById('ocrbox').style.display = 'none';
+  document.getElementById('ocrbtn').disabled=files.length===0;
+  document.getElementById('aibtn').disabled=true;
+  document.getElementById('ocrbox').style.display='none';
   updateHint();
 }
-
-const toDataUrl = f => new Promise(r => { const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.readAsDataURL(f); });
-
-function renderThumbs() {
-  const c = document.getElementById('thumbs'); c.innerHTML = '';
-  files.forEach((e, i) => {
-    const d = document.createElement('div'); d.className = 'thumb'; d.id = 'th'+i;
-    if (e.type === 'image') {
-      d.innerHTML = `<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓ done':''}</div>`;
-    } else {
-      d.innerHTML = `<div class="thumb-lbl">📄 ${e.name}</div><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓ done':''}</div>`;
-    }
+const toDataUrl=f=>new Promise(r=>{const rd=new FileReader();rd.onload=e=>r(e.target.result);rd.readAsDataURL(f);});
+function renderThumbs(){
+  const c=document.getElementById('thumbs');c.innerHTML='';
+  files.forEach((e,i)=>{
+    const d=document.createElement('div');d.className='thumb';d.id='th'+i;
+    d.innerHTML=e.type==='image'
+      ?`<img src="${e.dataUrl}"><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓':'...'}</div>`
+      :`<span style="font-size:1.8rem">📄</span><div class="thumb-lbl">${e.name}</div><button class="rm" onclick="rmFile(${i})">✕</button><div class="thumb-st" id="tst${i}">${extracted[e.name]?'✓':'...'}</div>`;
     c.appendChild(d);
   });
 }
-
-function rmFile(i) { files.splice(i,1); extracted={}; extractDone=false; renderThumbs(); document.getElementById('ocrbtn').disabled=files.length===0; document.getElementById('aibtn').disabled=true; updateHint(); }
-
-function updateHint() {
-  const h = document.getElementById('hint');
-  if (!files.length) h.textContent='Upload files to get started.';
-  else if (!extractDone) h.textContent='Files loaded ✓ — click "Extract Text"';
-  else if (!apiKey) h.textContent='Text extracted ✓ — add a Groq key to use AI summarisation';
-  else h.textContent='Text extracted ✓ — click "Summarise with AI"';
+function rmFile(i){files.splice(i,1);extracted={};extractDone=false;renderThumbs();document.getElementById('ocrbtn').disabled=files.length===0;document.getElementById('aibtn').disabled=true;updateHint();}
+function updateHint(){
+  const h=document.getElementById('hint');
+  if(!files.length)h.textContent='Upload files to get started.';
+  else if(!extractDone)h.textContent='Files loaded ✓ — click "Extract Text"';
+  else if(!apiKey)h.textContent='Text extracted ✓ — add a Groq key to use AI';
+  else h.textContent='Text extracted ✓ — click "Summarise"';
 }
 
-// ── Image preprocessing for better OCR ────────────────────────────────────────
-// Converts image to high-contrast grayscale before Tesseract
-function preprocessImage(dataUrl) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const cvs = document.getElementById('cvs');
-      cvs.width = img.width;
-      cvs.height = img.height;
-      const ctx = cvs.getContext('2d');
-
-      // Draw original
-      ctx.drawImage(img, 0, 0);
-
-      // Get pixel data
-      const id = ctx.getImageData(0, 0, cvs.width, cvs.height);
-      const d = id.data;
-
-      // 1. Grayscale
-      for (let i = 0; i < d.length; i += 4) {
-        const gray = 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-        d[i] = d[i+1] = d[i+2] = gray;
-      }
-
-      // 2. Contrast stretch — find min/max
-      let mn = 255, mx = 0;
-      for (let i = 0; i < d.length; i += 4) { mn=Math.min(mn,d[i]); mx=Math.max(mx,d[i]); }
-      const range = mx - mn || 1;
-
-      // 3. Stretch + mild threshold to sharpen text
-      for (let i = 0; i < d.length; i += 4) {
-        let v = ((d[i] - mn) / range) * 255;
-        // Slight sigmoid to push near-white whiter and near-black blacker
-        v = v < 128 ? Math.max(0, v - 20) : Math.min(255, v + 20);
-        d[i] = d[i+1] = d[i+2] = v;
-      }
-
-      ctx.putImageData(id, 0, 0);
-      resolve(cvs.toDataURL('image/png'));
+// ── Image preprocessing ───────────────────────────────────────────────────────
+function preprocessImage(dataUrl){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const cv=document.getElementById('cvs');
+      cv.width=img.width;cv.height=img.height;
+      const ctx=cv.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const id=ctx.getImageData(0,0,cv.width,cv.height);
+      const d=id.data;
+      // grayscale
+      for(let i=0;i<d.length;i+=4){const g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];d[i]=d[i+1]=d[i+2]=g;}
+      // contrast stretch
+      let mn=255,mx=0;
+      for(let i=0;i<d.length;i+=4){mn=Math.min(mn,d[i]);mx=Math.max(mx,d[i]);}
+      const range=mx-mn||1;
+      for(let i=0;i<d.length;i+=4){let v=((d[i]-mn)/range)*255;v=v<128?Math.max(0,v-25):Math.min(255,v+25);d[i]=d[i+1]=d[i+2]=v;}
+      ctx.putImageData(id,0,0);
+      resolve(cv.toDataURL('image/png'));
     };
-    img.src = dataUrl;
+    img.src=dataUrl;
   });
 }
 
-// ── PDF text extraction ───────────────────────────────────────────────────────
-async function extractPDF(file) {
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  let text = '';
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const tc = await page.getTextContent();
-    text += tc.items.map(i => i.str).join(' ') + '\n';
+// ── PDF extraction ────────────────────────────────────────────────────────────
+async function extractPDF(file){
+  const buf=await file.arrayBuffer();
+  const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+  let text='';
+  for(let p=1;p<=pdf.numPages;p++){
+    const page=await pdf.getPage(p);
+    const tc=await page.getTextContent();
+    text+=tc.items.map(i=>i.str).join(' ')+'\n';
   }
   return text.trim();
 }
 
-// ── Extract all files ─────────────────────────────────────────────────────────
-async function runExtract() {
-  if (!files.length) return;
-  const btn = document.getElementById('ocrbtn');
-  btn.disabled = true; btn.innerHTML = '⏳ Extracting…';
-
-  document.getElementById('ocrbox').style.display = 'block';
-  const rows = document.getElementById('ocrrows'); rows.innerHTML = '';
-  files.forEach((e, i) => {
-    rows.innerHTML += `<div class="ocr-row">
-      <div class="ocr-name">${e.name}</div>
-      <div class="bar-wrap"><div class="bar" id="ob${i}" style="width:0%"></div></div>
-      <div class="ocr-st pend" id="os${i}">waiting</div>
-    </div>`;
+// ── Extract all ───────────────────────────────────────────────────────────────
+async function runExtract(){
+  if(!files.length)return;
+  const btn=document.getElementById('ocrbtn');
+  btn.disabled=true;btn.innerHTML='⏳ Extracting…';
+  document.getElementById('ocrbox').style.display='block';
+  const rows=document.getElementById('ocrrows');rows.innerHTML='';
+  files.forEach((e,i)=>{
+    rows.innerHTML+=`<div class="ocr-row"><div class="ocr-name">${e.name}</div><div class="bwrap"><div class="bbar" id="ob${i}" style="width:0%"></div></div><div class="ost pend" id="os${i}">waiting</div></div>`;
   });
-
-  extracted = {};
-
-  for (let i = 0; i < files.length; i++) {
-    const e = files[i];
-    const stEl = document.getElementById(`os${i}`);
-    const barEl = document.getElementById(`ob${i}`);
-    stEl.textContent = 'working'; stEl.className = 'ocr-st run';
-
-    try {
-      if (e.type === 'pdf') {
-        // PDF: extract text directly — no OCR needed
-        stEl.textContent = 'reading pdf…'; barEl.style.width = '50%';
-        const text = await extractPDF(e.file);
-        extracted[e.name] = text;
-        barEl.style.width = '100%';
-        stEl.textContent = '✓ done'; stEl.className = 'ocr-st done';
-        const ts = document.getElementById('tst'+i); if(ts) ts.textContent='✓ done';
-
+  extracted={};
+  for(let i=0;i<files.length;i++){
+    const e=files[i];
+    const st=document.getElementById(`os${i}`),bar=document.getElementById(`ob${i}`);
+    st.textContent='working';st.className='ost run';
+    try{
+      if(e.type==='pdf'){
+        st.textContent='reading…';bar.style.width='40%';
+        extracted[e.name]=await extractPDF(e.file);
+        bar.style.width='100%';st.textContent='✓ done';st.className='ost done';
       } else {
-        // Image: preprocess then OCR
-        stEl.textContent = 'processing…'; barEl.style.width = '15%';
-        const preprocessed = await preprocessImage(e.dataUrl);
-        barEl.style.width = '25%';
-
-        const result = await Tesseract.recognize(preprocessed, 'eng+deu+fra', {
-          logger: m => {
-            if (m.status === 'recognizing text') {
-              barEl.style.width = (25 + m.progress * 70) + '%';
-            }
-          }
-        });
-        extracted[e.name] = result.data.text;
-        barEl.style.width = '100%';
-        stEl.textContent = '✓ done'; stEl.className = 'ocr-st done';
-        const ts = document.getElementById('tst'+i); if(ts) ts.textContent='✓ done';
+        st.textContent='processing…';bar.style.width='10%';
+        const pre=await preprocessImage(e.dataUrl);
+        bar.style.width='20%';
+        const r=await Tesseract.recognize(pre,'eng+deu+fra',{logger:m=>{if(m.status==='recognizing text')bar.style.width=(20+m.progress*75)+'%';}});
+        extracted[e.name]=r.data.text;
+        bar.style.width='100%';st.textContent='✓ done';st.className='ost done';
       }
-    } catch (err) {
-      stEl.textContent = 'error'; stEl.className = 'ocr-st';
-      toast('⚠️ Failed: ' + e.name);
+      const ts=document.getElementById('tst'+i);if(ts)ts.textContent='✓';
+    } catch(err){
+      st.textContent='error';toast('⚠️ Failed: '+e.name);
     }
   }
-
-  const all = Object.values(extracted).join('\n\n---\n\n');
-  if (all.trim()) {
-    document.getElementById('rawbox').textContent = all.slice(0, 600) + (all.length > 600 ? '…' : '');
-    document.getElementById('rawwrap').style.display = 'block';
-  }
-
-  extractDone = true;
-  btn.innerHTML = '🔍 Re-extract'; btn.disabled = false;
-  document.getElementById('aibtn').disabled = !apiKey;
-  updateHint();
-  toast('✓ Extraction done');
+  const all=Object.values(extracted).join('\n\n---\n\n');
+  document.getElementById('rawbox').textContent=all.slice(0,500)+(all.length>500?'…':'');
+  document.getElementById('rawwrap').style.display='block';
+  extractDone=true;
+  btn.innerHTML='🔍 Re-extract';btn.disabled=false;
+  document.getElementById('aibtn').disabled=!apiKey;
+  updateHint();toast('✓ Extraction done');
 }
 
-// ── AI Summarise ──────────────────────────────────────────────────────────────
-async function runAI() {
-  if (!extractDone || !apiKey) return;
-  const subject = document.getElementById('subject').value.trim() || 'General';
-  const ctx = document.getElementById('ctx').value.trim();
-  const raw = Object.values(extracted).join('\n\n');
+// ── AI Summary ────────────────────────────────────────────────────────────────
+async function runAI(){
+  if(!extractDone||!apiKey)return;
+  const subject=document.getElementById('subject').value.trim()||'General';
+  const lang=document.getElementById('lang').value;
+  const raw=Object.values(extracted).join('\n\n');
+  const defs=Object.entries(defModes);
+  const wfw=defs.filter(([,v])=>v==='wfw').map(([k])=>k);
+  const understand=defs.filter(([,v])=>v==='understand').map(([k])=>k);
 
-  goTab('results', document.querySelectorAll('.tab')[1]);
-  document.getElementById('res-empty').style.display = 'none';
-  document.getElementById('res-content').style.display = 'none';
-  document.getElementById('res-load').style.display = 'flex';
-  document.getElementById('loadtxt').textContent = 'Sending to Groq…';
+  const langInstr=lang==='keep'
+    ?'Keep the original language of the notes. Do NOT translate.'
+    :`Write your response in ${{'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian','pt':'Portuguese'}[lang]}.`;
 
-  try {
-    const prompt = `You are a study assistant. The student has notes on "${subject}"${ctx?` (${ctx})`:''}. 
+  goPage('results');
+  document.getElementById('res-empty').style.display='none';
+  document.getElementById('res-content').style.display='none';
+  document.getElementById('res-load').style.display='flex';
+  document.getElementById('loadtxt').textContent='Summarising with Groq…';
 
-Below is the raw extracted text from their notes (may have OCR noise for handwritten parts):
+  try{
+    const prompt=`You are a study assistant for the subject: "${subject}".
+
+LANGUAGE INSTRUCTION: ${langInstr}
+
+Raw extracted text from student notes (may have OCR noise):
 <notes>
-${raw.slice(0, 12000)}
+${raw.slice(0,12000)}
 </notes>
 
-Your job:
-1. Write a clean, readable version of the notes (fix typos, OCR errors, make it coherent).
-2. Extract the most important learning points — things the student MUST know.
+${wfw.length?`These definitions must be learned WORD-FOR-WORD (exact wording matters): ${wfw.join(', ')}`:''} 
+${understand.length?`These just need to be UNDERSTOOD (no exact wording needed): ${understand.join(', ')}` :''}
 
-Respond ONLY with this exact JSON (no markdown, no extra text):
+Your job:
+1. Clean up the notes into readable text.
+2. Extract learning points from the notes ONLY — do not add outside knowledge.
+3. For any definition marked word-for-word, include the exact definition from the notes if present.
+
+Respond ONLY with raw JSON (no markdown, no backticks):
 {
-  "clean": "The clean version of the notes, well structured.",
-  "points": ["Learning point 1", "Learning point 2", "...up to 15 points"],
-  "topics": ["topic1", "topic2"]
+  "clean": "Clean readable version of the notes.",
+  "points": [
+    {"text":"Learning point","type":"normal|wfw|understand","definition":"exact definition text if wfw, else null"}
+  ],
+  "topics": ["topic1","topic2"]
 }
 
-Be concise. Do not add explanations outside of what is in the notes. Do not invent content.`;
+Rules: Extract ONLY what is in the notes. No extra explanations. No invented content. Keep it concise.`;
 
-    const text = await groq(prompt);
-    document.getElementById('res-load').style.display = 'none';
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
-    summaryResult = parsed;
-    document.getElementById('plansub').value = subject;
+    const text=await groq(prompt);
+    document.getElementById('res-load').style.display='none';
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    summaryResult=parsed;
+    document.getElementById('plansub').value=subject;
     renderResults(parsed);
-  } catch (err) {
-    document.getElementById('res-load').style.display = 'none';
-    document.getElementById('res-empty').style.display = 'block';
-    document.getElementById('res-empty').innerHTML = `<span class="em">❌</span><p>${err.message}</p>`;
-    toast('❌ ' + err.message);
+  } catch(err){
+    document.getElementById('res-load').style.display='none';
+    document.getElementById('res-empty').style.display='block';
+    document.getElementById('res-empty').innerHTML=`<span class="em">❌</span><p>${err.message}</p>`;
+    toast('❌ '+err.message);
   }
 }
 
-function renderResults(d) {
-  document.getElementById('res-content').style.display = 'block';
-  const topics = (d.topics||[]).map(t=>`<span class="chip chip-p">${t}</span>`).join(' ');
-  const points = (d.points||[]).map((p,i)=>`<li class="lp-item"><span class="lp-n">${String(i+1).padStart(2,'0')}</span><span>${p}</span></li>`).join('');
+function renderResults(d){
+  document.getElementById('res-content').style.display='block';
+  const topics=(d.topics||[]).map(t=>`<span class="chip chip-p">${t}</span>`).join(' ');
+  const points=(d.points||[]).map((p,i)=>`
+    <li class="lp-item ${p.type==='wfw'?'wfw-item':''}">
+      <span class="lp-n" title="${p.type==='wfw'?'Word-for-word':p.type==='understand'?'Understand':'Normal'}">${String(i+1).padStart(2,'0')}</span>
+      <span>
+        ${p.type==='wfw'?`<span class="chip chip-o" style="margin-right:6px;font-size:0.65rem">word-for-word</span>`:''}
+        ${p.type==='understand'?`<span class="chip chip-g" style="margin-right:6px;font-size:0.65rem">understand</span>`:''}
+        ${esc(p.text)}
+        ${p.definition?`<div style="margin-top:6px;font-size:0.82rem;color:var(--txd);background:var(--s2);padding:8px 10px;border-radius:8px;border-left:2px solid var(--ac2)">${esc(p.definition)}</div>`:''}
+      </span>
+    </li>`).join('');
 
-  document.getElementById('res-content').innerHTML = `
-    <div style="margin-bottom:22px">
-      <div class="stitle" style="font-size:1.35rem">Done</div>
-      <div style="margin-top:8px;display:flex;gap:7px;flex-wrap:wrap">${topics}</div>
+  document.getElementById('res-content').innerHTML=`
+    <div style="margin-bottom:20px">
+      <div class="sec-title" style="font-size:1.3rem">Summary</div>
+      <div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap">${topics}</div>
     </div>
-    <div class="two-col">
-      <div class="card full">
-        <div class="card-hd">
-          <div class="ctitle"><span class="dot"></span> Clean Notes</div>
-          <button class="btn btn-g btn-sm" onclick="copyEl('cleannotes')">Copy</button>
-        </div>
-        <div class="trans" id="cleannotes">${esc(d.clean||'')}</div>
-      </div>
-      <div class="card full">
-        <div class="card-hd">
-          <div class="ctitle"><span class="dot dot-g"></span> Learning Points</div>
-          <span class="chip chip-g">${(d.points||[]).length}</span>
-        </div>
-        <ul class="lp-list">${points}</ul>
-      </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd"><div class="ctitle"><span class="dot"></span> Clean Notes</div><button class="btn btn-g btn-sm" onclick="copyEl('cleannotes')">Copy</button></div>
+      <div style="font-size:0.89rem;line-height:1.8;white-space:pre-wrap;max-height:320px;overflow-y:auto;padding-right:4px" id="cleannotes">${esc(d.clean||'')}</div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="ctitle"><span class="dot dot-g"></span> Learning Points</div><span class="chip chip-g">${(d.points||[]).length}</span></div>
+      <ul class="lp-list">${points}</ul>
     </div>
     <div class="actions">
-      <button class="btn btn-p" onclick="goTab('plan',document.querySelectorAll('.tab')[2])">📅 Build Study Plan</button>
+      <button class="btn btn-p" onclick="goPage('plan')">📅 Build Study Plan</button>
       <button class="btn btn-g" onclick="copyAll()">📋 Copy All</button>
     </div>`;
 }
 
-// ── Study Plan ─────────────────────────────────────────────────────────────────
-async function runPlan() {
-  if (!apiKey) { toast('⚠️ Need a Groq key'); return; }
-  const sub = document.getElementById('plansub').value.trim();
-  const exam = document.getElementById('examdate').value;
-  const extras = document.getElementById('extras').value.trim();
-  if (!sub) { toast('⚠️ Enter a subject'); return; }
-  if (!exam) { toast('⚠️ Enter exam date'); return; }
-  const days = Math.ceil((new Date(exam) - new Date()) / 86400000);
-  if (days < 1) { toast('⚠️ Date must be in the future'); return; }
+// ── Study Plan ────────────────────────────────────────────────────────────────
+async function runPlan(){
+  if(!apiKey){toast('⚠️ Need a Groq key');return;}
+  const sub=document.getElementById('plansub').value.trim();
+  const exam=document.getElementById('examdate').value;
+  const extras=document.getElementById('extras').value.trim();
+  const mins=parseInt(document.getElementById('studytime').value);
+  if(!sub){toast('⚠️ Enter a subject');return;}
+  if(!exam){toast('⚠️ Enter exam date');return;}
+  const days=Math.ceil((new Date(exam)-new Date())/86400000);
+  if(days<1){toast('⚠️ Date must be in the future');return;}
 
   document.getElementById('plan-empty').style.display='none';
   document.getElementById('plan-content').style.display='none';
   document.getElementById('plan-load').style.display='flex';
 
-  try {
-    const notesCtx = summaryResult
-      ? `Key topics: ${(summaryResult.topics||[]).join(', ')}. Main points: ${(summaryResult.points||[]).slice(0,8).join('; ')}.`
-      : '';
+  try{
+    const pointCount=(summaryResult?.points||[]).length;
+    const topics=(summaryResult?.topics||[]).join(', ');
+    const pointsList=(summaryResult?.points||[]).map((p,i)=>`${i+1}. [${p.type||'normal'}] ${p.text}`).join('\n');
 
-    const prompt = `Create a study plan for a student.
+    const prompt=`Create a study plan for a student.
 Subject: ${sub}
 Days until exam: ${days}
-${notesCtx}
+Minutes available per day: ${mins}
+Number of learning points to cover: ${pointCount||'unknown'}
+${topics?'Topics: '+topics:''}
+${pointsList?'Points to learn:\n'+pointsList:''}
 ${extras?'Student notes: '+extras:''}
+
+The plan MUST be proportional to the actual content. If there are only a few points, don't make a 7-day plan — scale it to the material. Max ${Math.min(days,14)} days.
+
+Each day should have a clear focus and specific tasks that match the study time (${mins} min/day).
 
 Respond ONLY with raw JSON (no markdown, no backticks):
 {
   "days": [
-    {"label":"Day 1 – Mon 28 Apr","theme":"Short focus theme","tasks":[{"icon":"📖","task":"Specific task for ${sub}"}]}
+    {
+      "label": "Day 1 – Mon 28 Apr",
+      "theme": "Short focus",
+      "pointIndexes": [0,1],
+      "tasks": [{"icon":"📖","task":"Specific task"}]
+    }
   ],
-  "tips": ["Short practical tip"]
+  "tips": ["Short tip"]
 }
 
-Rules:
-- Exactly ${Math.min(days,14)} days starting tomorrow
-- Last day = final review
-- 3-4 tasks per day, all specific to ${sub}
-- 3 tips max
-- Only include what a student can realistically do`;
+pointIndexes = which learning point indexes (0-based) to study that day. Only reference existing points.`;
 
-    const text = await groq(prompt);
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    const text=await groq(prompt);
+    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
+    planDays=parsed.days||[];
     document.getElementById('plan-load').style.display='none';
-    renderPlan(parsed, days, sub, exam);
-  } catch(err) {
+    renderPlan(parsed,days,sub,exam,mins);
+    scheduleReminders(parsed.days,sub);
+  } catch(err){
     document.getElementById('plan-load').style.display='none';
     document.getElementById('plan-empty').style.display='block';
     toast('❌ '+err.message);
   }
 }
 
-function renderPlan(d, days, sub, exam) {
+function renderPlan(d,days,sub,exam,mins){
   document.getElementById('plan-content').style.display='block';
-  const examFmt = new Date(exam+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const examFmt=new Date(exam+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const today=new Date().toDateString();
 
-  const daysH = (d.days||[]).map((day,i)=>`
-    <div class="pday">
-      <div class="dm">
-        <div class="ddot" style="${i===d.days.length-1?'background:var(--ac2);box-shadow:0 0 0 1px var(--ac2)':''}"></div>
-        ${i<d.days.length-1?'<div class="dline"></div>':''}
-      </div>
-      <div class="dcontent">
-        <div class="dlbl">${day.label}</div>
-        <div class="dtitle">${day.theme}</div>
-        <ul class="dtasks">${(day.tasks||[]).map(t=>`<li class="dtask"><span>${t.icon||'📌'}</span><span>${t.task}</span></li>`).join('')}</ul>
-      </div>
-    </div>`).join('');
+  const grid=(d.days||[]).map((day,i)=>{
+    const isDone=doneDays.has(i);
+    const pts=(day.pointIndexes||[]).map(idx=>(summaryResult?.points||[])[idx]?.text).filter(Boolean);
+    return `<div class="day-card ${isDone?'done-day':''}" onclick="openDay(${i})" id="dc${i}">
+      <div class="dlbl">${day.label}</div>
+      <div class="dtheme">${day.theme}</div>
+      <div class="dtopics">${pts.slice(0,2).map(p=>p.length>40?p.slice(0,40)+'…':p).join('<br>')}</div>
+    </div>`;
+  }).join('');
 
-  const tipsH = (d.tips||[]).map(t=>`<div style="padding:10px 0;border-bottom:1px solid var(--br);font-size:0.87rem;color:var(--txd)">${t}</div>`).join('');
+  const tips=(d.tips||[]).map(t=>`<div style="padding:9px 0;border-bottom:1px solid var(--br);font-size:0.85rem;color:var(--txd)">${t}</div>`).join('');
 
   document.getElementById('plan-content').innerHTML=`
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:26px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
       <div>
-        <div class="stitle" style="font-size:1.35rem">${sub} — ${days} day${days!==1?'s':''} to go</div>
-        <p style="color:var(--txd);font-size:0.85rem;margin-top:3px">Exam: ${examFmt}</p>
+        <div class="sec-title" style="font-size:1.3rem">${sub} — ${days} day${days!==1?'s':''}</div>
+        <p style="color:var(--txd);font-size:0.84rem;margin-top:2px">Exam: ${examFmt} · ${mins} min/day</p>
       </div>
-      <button class="btn btn-g btn-sm" onclick="copyEl('plan-content')">📋 Copy</button>
     </div>
-    <div style="display:grid;grid-template-columns:2fr 1fr;gap:22px;align-items:start">
-      <div>${daysH}</div>
-      <div class="card" style="position:sticky;top:88px">
-        <div class="card-hd" style="margin-bottom:12px"><div class="ctitle"><span class="dot" style="background:var(--ac2)"></span> Tips</div></div>
-        ${tipsH}
-      </div>
+    <div class="plan-grid">${grid}</div>
+    ${tips?`<div class="card" style="margin-top:16px"><div class="card-hd" style="margin-bottom:10px"><div class="ctitle"><span class="dot dot-o"></span> Tips</div></div>${tips}</div>`:''}`;
+}
+
+// ── Day Modal ─────────────────────────────────────────────────────────────────
+let currentDayIdx=-1, quizData=null, quizIdx=0;
+
+async function openDay(idx){
+  currentDayIdx=idx;
+  const day=planDays[idx];
+  if(!day)return;
+  document.getElementById('modal').style.display='flex';
+  const pts=(day.pointIndexes||[]).map(i=>(summaryResult?.points||[])[i]).filter(Boolean);
+
+  const pointsHTML=pts.map((p,i)=>`
+    <div style="padding:10px 12px;background:var(--s2);border-radius:10px;margin-bottom:8px;border-left:3px solid ${p.type==='wfw'?'var(--ac2)':p.type==='understand'?'var(--ac3)':'var(--br)'}">
+      ${p.type==='wfw'?`<span class="chip chip-o" style="font-size:0.62rem;margin-bottom:4px;display:inline-flex">word-for-word</span><br>`:''}
+      <span style="font-size:0.88rem;line-height:1.6">${esc(p.text)}</span>
+      ${p.definition?`<div style="margin-top:6px;font-size:0.81rem;color:var(--txd);font-style:italic">"${esc(p.definition)}"</div>`:''}
+    </div>`).join('');
+
+  document.getElementById('modal-content').innerHTML=`
+    <h2>${day.theme}</h2>
+    <div class="modal-sub">${day.label} · ${(day.tasks||[]).length} tasks</div>
+    
+    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">What to study today</div>
+    ${pointsHTML||'<p style="color:var(--txd);font-size:0.86rem">No specific points assigned.</p>'}
+
+    <div style="font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--txdd);text-transform:uppercase;letter-spacing:0.08em;margin:14px 0 10px">Tasks</div>
+    ${(day.tasks||[]).map(t=>`<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--br);font-size:0.86rem;color:var(--txd)"><span>${t.icon}</span><span>${t.task}</span></div>`).join('')}
+
+    <div style="margin-top:18px;display:flex;gap:9px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" onclick="startQuiz(${idx})">🧠 Quiz me on this</button>
+      ${!doneDays.has(idx)?`<button class="btn btn-ok btn-sm" onclick="markDone(${idx})">✓ Mark as done</button>`:'<span style="color:var(--ok);font-size:0.85rem;align-self:center">✓ Completed</span>'}
     </div>`;
 }
 
-// ── Groq ───────────────────────────────────────────────────────────────────────
-async function groq(prompt) {
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+async function startQuiz(idx){
+  const day=planDays[idx];
+  if(!day||!apiKey){toast('Need a Groq key for quiz');return;}
+  const pts=(day.pointIndexes||[]).map(i=>(summaryResult?.points||[])[i]).filter(Boolean);
+  if(!pts.length){toast('No specific points for this day');return;}
+
+  document.getElementById('modal-content').innerHTML=`<h2>Quiz — ${day.theme}</h2><div class="loading" style="padding:30px"><div class="spinner"></div><div class="ltxt">Generating questions…</div></div>`;
+
+  const ptsList=pts.map((p,i)=>`${i+1}. [${p.type}] ${p.text}${p.definition?' — Definition: '+p.definition:''}`).join('\n');
+
+  try{
+    const prompt=`Create a short quiz for these learning points:
+${ptsList}
+
+For word-for-word points, ask to recall the exact definition.
+For understand points, ask conceptual questions.
+
+Respond ONLY with raw JSON (no markdown):
+{
+  "questions": [
+    {
+      "q": "Question text",
+      "opts": ["A. Option","B. Option","C. Option","D. Option"],
+      "correct": 0,
+      "explain": "Brief explanation of the answer"
+    }
+  ]
+}
+Create ${Math.min(pts.length*2,6)} questions. Base them ONLY on the provided points.`;
+
+    const text=await groq(prompt);
+    quizData=JSON.parse(text.replace(/```json|```/g,'').trim());
+    quizIdx=0;
+    showQuizQuestion(idx);
+  } catch(err){
+    toast('❌ '+err.message);
+    openDay(idx);
+  }
+}
+
+function showQuizQuestion(dayIdx){
+  const day=planDays[dayIdx];
+  const qs=quizData?.questions||[];
+  if(quizIdx>=qs.length){
+    document.getElementById('modal-content').innerHTML=`
+      <h2>Quiz done! 🎉</h2>
+      <p style="color:var(--txd);margin:12px 0 20px;font-size:0.9rem">You went through all ${qs.length} questions for "${day.theme}".</p>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn btn-ok btn-sm" onclick="markDone(${dayIdx})">✓ Mark day as done</button>
+        <button class="btn btn-g btn-sm" onclick="openDay(${dayIdx})">← Back</button>
+      </div>`;
+    return;
+  }
+  const q=qs[quizIdx];
+  document.getElementById('modal-content').innerHTML=`
+    <h2>${day.theme}</h2>
+    <div class="modal-sub">Question ${quizIdx+1} of ${qs.length}</div>
+    <div class="quiz-q">${esc(q.q)}</div>
+    <div class="quiz-opts" id="qopts">
+      ${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="answerQuiz(${i},${q.correct},${dayIdx})">${esc(o)}</button>`).join('')}
+    </div>
+    <div id="qexplain" style="display:none" class="quiz-explain">${esc(q.explain||'')}</div>
+    <button class="btn btn-p btn-sm" id="qnext" style="display:none;margin-top:10px" onclick="quizIdx++;showQuizQuestion(${dayIdx})">Next →</button>`;
+}
+
+function answerQuiz(chosen, correct, dayIdx){
+  const opts=document.querySelectorAll('.quiz-opt');
+  opts.forEach((o,i)=>{
+    o.disabled=true;
+    if(i===correct)o.classList.add('correct');
+    else if(i===chosen)o.classList.add('wrong');
+  });
+  document.getElementById('qexplain').style.display='block';
+  document.getElementById('qnext').style.display='inline-flex';
+}
+
+function markDone(idx){
+  doneDays.add(idx);
+  localStorage.setItem('nf_done',JSON.stringify([...doneDays]));
+  const dc=document.getElementById('dc'+idx);
+  if(dc)dc.classList.add('done-day');
+  toast('✓ Day marked as done!');
+  closeModalDirect();
+}
+
+function closeModal(e){if(e.target.id==='modal')closeModalDirect();}
+function closeModalDirect(){document.getElementById('modal').style.display='none';}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+let chatHistory=[];
+
+async function sendChat(){
+  if(!apiKey){toast('⚠️ Need a Groq key');return;}
+  const inp=document.getElementById('chat-in');
+  const msg=inp.value.trim();
+  if(!msg)return;
+  inp.value='';
+
+  appendMsg(msg,'user');
+  chatHistory.push({role:'user',content:msg});
+
+  const thinking=appendMsg('Thinking…','ai thinking');
+
+  const notes=summaryResult?.clean||Object.values(extracted).join('\n\n')||'No notes loaded yet.';
+  const systemMsg=`You are a study assistant. Answer questions based ONLY on the following student notes. If the answer is not in the notes, say so. Be concise.
+
+NOTES:
+${notes.slice(0,10000)}`;
+
+  try{
+    const messages=[{role:'user',content:systemMsg+'\n\nStudent question: '+chatHistory.map(m=>m.content).join('\n')}];
+    const text=await groq(messages[0].content);
+    thinking.textContent=text;
+    thinking.classList.remove('thinking');
+    chatHistory.push({role:'assistant',content:text});
+  } catch(err){
+    thinking.textContent='Error: '+err.message;
+  }
+
+  const msgs=document.getElementById('chat-msgs');
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function appendMsg(text,cls){
+  const msgs=document.getElementById('chat-msgs');
+  const d=document.createElement('div');
+  d.className='msg '+cls;
+  d.textContent=text;
+  msgs.appendChild(d);
+  msgs.scrollTop=msgs.scrollHeight;
+  return d;
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+async function requestNotifs(){
+  if(!('Notification' in window)){toast('Browser notifications not supported');return;}
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){
+    notifGranted=true;
+    document.getElementById('notif-bar').style.display='none';
+    toast('✓ Reminders enabled!');
+  } else {
+    toast('Notifications blocked in browser settings');
+  }
+}
+
+function scheduleReminders(days){
+  if(!notifGranted||!days?.length)return;
+  notifScheduled.forEach(t=>clearTimeout(t));
+  notifScheduled=[];
+  const now=new Date();
+  days.forEach((day,i)=>{
+    // Schedule for next day at 9am if day label mentions it
+    const target=new Date(now);
+    target.setDate(target.getDate()+i+1);
+    target.setHours(9,0,0,0);
+    const delay=target-now;
+    if(delay>0){
+      const t=setTimeout(()=>{
+        new Notification('NoteFlow — Time to study!',{
+          body:`Today: ${day.theme}`,
+          icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📝</text></svg>'
+        });
+      },delay);
+      notifScheduled.push(t);
+    }
+  });
+  if(notifGranted&&days.length)toast(`🔔 ${Math.min(days.length,14)} reminders scheduled`);
+}
+
+// ── Groq ──────────────────────────────────────────────────────────────────────
+async function groq(prompt){
+  const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{
     method:'POST',
     headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
     body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4000,temperature:0.15,messages:[{role:'user',content:prompt}]})
   });
   if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||'Groq error '+r.status);}
-  const d=await r.json();
-  return d.choices[0].message.content;
+  return (await r.json()).choices[0].message.content;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent||document.getElementById(id).innerText);toast('✓ Copied');}
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent||'');toast('✓ Copied');}
 function copyAll(){
   if(!summaryResult)return;
-  const t=['=== NOTES ===\n'+summaryResult.clean,'\n=== LEARNING POINTS ===\n'+(summaryResult.points||[]).map((p,i)=>`${i+1}. ${p}`).join('\n')].join('\n');
+  const t=['=== NOTES ===\n'+summaryResult.clean,'\n=== LEARNING POINTS ===\n'+(summaryResult.points||[]).map((p,i)=>`${i+1}. [${p.type}] ${p.text}${p.definition?'\n   "'+p.definition+'"':''}`).join('\n')].join('\n');
   navigator.clipboard.writeText(t);toast('✓ Copied');
 }
 let _tt;
