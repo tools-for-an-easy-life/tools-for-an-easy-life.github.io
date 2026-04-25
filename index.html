@@ -159,6 +159,7 @@ textarea{resize:vertical;line-height:1.6}
 .plan-day{background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s}
 .plan-day:hover{border-color:var(--ac);transform:translateY(-1px)}
 .plan-day.done{border-color:var(--ok);background:rgba(39,105,79,0.04)}
+.plan-day.review-day{border-style:dashed;border-color:var(--ac)}
 .plan-day.done::after{content:'✓';float:right;color:var(--ok);font-weight:700}
 .pd-lbl{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
 .pd-theme{font-weight:600;font-size:0.88rem;margin-bottom:6px}
@@ -383,8 +384,14 @@ canvas#cvs{display:none}
           <!-- manual text -->
           <div class="card" style="margin-bottom:14px">
             <div class="card-hd"><div class="card-title"><span class="dot dot-o"></span> Manual notes</div></div>
-            <p style="font-size:0.83rem;color:var(--ink3);margin-bottom:10px">Type or paste notes here — use this if the file extraction didn't work, or to add extra context.</p>
-            <textarea class="notes-area" id="manual-notes" placeholder="Type your notes here…" oninput="saveManualNotes()"></textarea>
+            <div class="card-hd"><div class="card-title"><span class="dot dot-o"></span> Manual notes &amp; file filters</div></div>
+            <p style="font-size:0.83rem;color:var(--ink3);margin-bottom:6px">Type extra notes here. To filter which questions per file, use:</p>
+            <div style="font-family:'DM Mono',monospace;font-size:0.75rem;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:8px 11px;margin-bottom:10px;color:var(--ink3)">AB 1.14: 1,2,6,7,8<br>AB 1.15: all<br><span style="color:var(--brb)">// filename: question numbers (or "all")</span></div>
+
+AB 1.14: 1,2,6,7,8
+AB 1.15: all
+
+(only those question numbers will be extracted from each file)" oninput="saveManualNotes()"></textarea>
           </div>
 
           <!-- settings -->
@@ -938,6 +945,45 @@ function toggleDef(term) {
   renderDefs();
 }
 
+// ── PARSE FILE FILTERS from manual notes ─────────────────────────────────────
+// Parses lines like "AB 1.14: 1,2,6,7,8" or "AB 1.14: all" from the notes field
+// Returns map of {fileNameFragment -> number[] | 'all'}
+function parseFileFilters(manualText) {
+  const filters = {};
+  const lines = manualText.split('\n');
+  lines.forEach(line => {
+    // Match: "some name: 1,2,3" or "some name: all"
+    const m = line.match(/^(.+?):\s*(all|[\d,\s]+)$/i);
+    if (m) {
+      const key = m[1].trim().toLowerCase();
+      const val = m[2].trim().toLowerCase();
+      filters[key] = val === 'all' ? 'all' : val.split(',').map(n=>parseInt(n.trim())).filter(n=>!isNaN(n));
+    }
+  });
+  return filters;
+}
+
+// Filters a file's extracted text to only include specified question/section numbers
+// Uses heuristic: looks for numbered lines/paragraphs
+function filterFileByNumbers(text, numbers) {
+  if (numbers === 'all' || !numbers?.length) return text;
+  // Split into numbered sections — look for lines starting with a number
+  const sections = [];
+  let current = null;
+  text.split('\n').forEach(line => {
+    const m = line.match(/^(\d+)[\.\)\:](.*)$/);
+    if (m) {
+      if (current) sections.push(current);
+      current = { num: parseInt(m[1]), lines: [line] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  });
+  if (current) sections.push(current);
+  if (!sections.length) return text; // no numbered sections found, return all
+  return sections.filter(s => numbers.includes(s.num)).map(s=>s.lines.join('\n')).join('\n\n');
+}
+
 // ── SUMMARISE ─────────────────────────────────────────────────────────────────
 async function runSummarise() {
   const t = getTest(); if (!t || !apiKey) return;
@@ -945,15 +991,30 @@ async function runSummarise() {
   const ctx = document.getElementById('ctx-input').value.trim();
   t.notes.lang = lang; t.notes.ctx = ctx;
 
-  const fileTexts = uploadedFiles.filter(f=>f.text?.trim()).map(f=>`[${f.name}]\n${f.text}`).join('\n\n');
-  const manualText = document.getElementById('manual-notes').value.trim();
-  const raw = [fileTexts, manualText].filter(Boolean).join('\n\n');
+  const manualRaw = document.getElementById('manual-notes').value.trim();
+  const filters = parseFileFilters(manualRaw);
+
+  // Build per-file texts, applying filters where specified
+  const fileChunks = uploadedFiles.filter(f=>f.text?.trim()).map(f => {
+    // find if any filter key matches this filename
+    const fname = f.name.toLowerCase().replace(/\.pdf$/,'').replace(/\.png$|.jpg$/,'');
+    const matchKey = Object.keys(filters).find(k => fname.includes(k) || k.includes(fname));
+    const filteredText = matchKey ? filterFileByNumbers(f.text, filters[matchKey]) : f.text;
+    return { name: f.name, text: filteredText, filterKey: matchKey || null };
+  });
+
+  // Strip filter lines from manual text so only real extra notes remain
+  const extraNotes = manualRaw.split('\n').filter(line => !line.match(/^.+?:\s*(all|[\d,\s]+)$/i)).join('\n').trim();
+
+  const fileTexts = fileChunks.map(f=>`[${f.name}${f.filterKey?' (filtered)':''}]\n${f.text}`).join('\n\n');
+  const raw = [fileTexts, extraNotes].filter(Boolean).join('\n\n');
   if (!raw.trim()) { toast('No text to summarise'); return; }
+
+  // Store per-file structure for smart plan later
+  t.notes.fileChunks = fileChunks.map(f=>({ name: f.name, pointCount: 0 }));
 
   const wfw = Object.entries(defModes).filter(([,v])=>v==='wfw').map(([k])=>k);
   const know = Object.entries(defModes).filter(([,v])=>v==='know').map(([k])=>k);
-  // Save lang to test so getLangStr() can read it
-  // getLangStr() will be called inside prompt below
 
   goTestTab('summary', document.querySelectorAll('.inner-tab')[1]);
   document.getElementById('summary-empty').style.display = 'none';
@@ -962,18 +1023,37 @@ async function runSummarise() {
 
   try {
     const sumLang = getLangStr();
+    const fileNames = fileChunks.map(f=>f.name);
     const prompt = `${sumLang}
 
-You are a study assistant for subject: "${t.subject}"${ctx?` (${ctx})`:''}.\n\nNOTES:\n<notes>\n${raw.slice(0,14000)}\n</notes>\n\n${wfw.length?`MUST learn word-for-word: ${wfw.join(', ')}`:''}${know.length?`\nJust need to understand: ${know.join(', ')}`:''}
+You are a study assistant for subject: "${t.subject}"${ctx?` (${ctx})`:''}.
+
+NOTES:
+<notes>
+${raw.slice(0,14000)}
+</notes>
+
+${wfw.length?`MUST learn word-for-word: ${wfw.join(', ')}`:''}
+${know.length?`Just need to understand: ${know.join(', ')}`:''}
+Files included: ${fileNames.join(', ')||'(manual notes)'}
 
 Extract ONLY what is in the notes. Do not add outside knowledge.
-Respond ONLY with a raw JSON object — no markdown fences, no trailing commas, no extra text:
-{"clean":"Clean readable version of the notes, well structured.","points":[{"text":"Learning point","type":"normal|wfw|know","definition":"exact wording from notes if wfw, else null"}],"topics":["topic"]}
+For EACH learning point, include a "source" field with the exact filename it came from. If from manual notes use "manual".
+Respond ONLY with a raw JSON object, no markdown, no trailing commas:
+{"clean":"Clean readable version of all notes.","points":[{"text":"point","type":"normal|wfw|know","definition":"exact wording if wfw else null","source":"filename.pdf"}],"topics":["topic"]}
 
-Rules: points should cover everything important. wfw points include the exact definition from the notes. Keep it concise.`;
+Cover everything important from ALL files. wfw points include exact definitions. Keep points concise.`;
 
     const resp = await groqText(prompt);
     const parsed = parseJSON(resp);
+
+    // Count points per source file for smart plan
+    if (t.notes.fileChunks) {
+      t.notes.fileChunks.forEach(fc => {
+        fc.pointCount = (parsed.points||[]).filter(p => p.source === fc.name).length;
+      });
+    }
+
     t.summary = parsed;
     // Update plan tab info
   const planInfo = document.getElementById('plan-exam-info');
@@ -1024,7 +1104,7 @@ function renderSummaryHTML(d) {
 async function runPlan() {
   const t = getTest(); if (!t || !apiKey) return;
   const exam = t.examDate;
-  const mins = document.getElementById('plan-time').value;
+  const mins = parseInt(document.getElementById('plan-time').value);
   const weak = document.getElementById('plan-weak').value.trim();
   if (!exam) { toast('⚠️ Set an exam date for this test first'); return; }
 
@@ -1035,46 +1115,107 @@ async function runPlan() {
   document.getElementById('plan-content').style.display = 'block';
   document.getElementById('plan-content').innerHTML = '<div class="section-loading"><div class="spinner"></div><span>Building plan…</span></div>';
 
-  const pts = (t.summary?.points||[]);
-  const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}`).join('\n');
+  const allPts = (t.summary?.points||[]);
   const today = new Date(); today.setHours(0,0,0,0);
-
-  // Compute study dates ourselves so AI can't mess them up
   const maxStudyDays = Math.min(days - 1, 14);
+
+  // Compute dates
   const studyDates = [];
   for (let i = 1; i <= maxStudyDays; i++) {
     const dd = new Date(today); dd.setDate(dd.getDate() + i);
-    const y=dd.getFullYear(),m=String(dd.getMonth()+1).padStart(2,'0'),d2=String(dd.getDate()).padStart(2,'0');
-    studyDates.push({ str: y+'-'+m+'-'+d2, label: dd.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) });
+    const y=dd.getFullYear(),mo=String(dd.getMonth()+1).padStart(2,'0'),d2=String(dd.getDate()).padStart(2,'0');
+    studyDates.push({ str:y+'-'+mo+'-'+d2, label:dd.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) });
   }
 
+  // ── SMART DISTRIBUTION ────────────────────────────────────────────────────
+  // Group points by source file
+  const sourceGroups = {};
+  allPts.forEach((p,i) => {
+    const src = p.source || 'manual';
+    if (!sourceGroups[src]) sourceGroups[src] = [];
+    sourceGroups[src].push(i); // store point index
+  });
+  const groups = Object.entries(sourceGroups); // [{src, [ptIdx,...]}]
+  const totalPts = allPts.length;
+
+  // How many days does this content actually need?
+  // Heuristic: ~3-5 points per hour of study. Scale to mins.
+  const ptsPerDay = Math.max(2, Math.round((mins / 60) * 4));
+  const neededDays = Math.min(studyDates.length, Math.max(1, Math.ceil(totalPts / ptsPerDay)));
+
+  // Distribute groups across neededDays — keep files together where possible
+  const dayAssignments = Array.from({length: neededDays}, (_,i) => ({
+    date: studyDates[i],
+    ptIndexes: [],
+    sources: []
+  }));
+
+  // Fill day by day, file by file
+  let dayIdx = 0;
+  groups.forEach(([src, ptIdxs]) => {
+    const slotsNeeded = Math.ceil(ptIdxs.length / ptsPerDay);
+    const slotsAvailable = neededDays - dayIdx;
+    const slotsForThis = Math.min(slotsNeeded, slotsAvailable, ptIdxs.length);
+    // split ptIdxs across slotsForThis days
+    const chunkSize = Math.ceil(ptIdxs.length / slotsForThis);
+    for (let s = 0; s < slotsForThis && dayIdx < neededDays; s++, dayIdx++) {
+      dayAssignments[dayIdx].ptIndexes = ptIdxs.slice(s * chunkSize, (s+1) * chunkSize);
+      dayAssignments[dayIdx].sources.push(src);
+    }
+  });
+
+  // Add a final review day if we have room and enough content
+  const hasReviewDay = neededDays < studyDates.length && totalPts >= 4;
+  const planDayStructure = dayAssignments.filter(d => d.ptIndexes.length > 0);
+  if (hasReviewDay) {
+    const reviewSlot = studyDates[planDayStructure.length];
+    if (reviewSlot) planDayStructure.push({ date: reviewSlot, ptIndexes: allPts.map((_,i)=>i), sources: ['review'], isReview: true });
+  }
+
+  // ── ASK AI ONLY FOR themes and tasks per day (not distribution) ───────────
+  const dayDescs = planDayStructure.map((d,i) => {
+    const pts = d.isReview ? 'ALL POINTS (review day)' : d.ptIndexes.map(idx => `[${allPts[idx]?.type||'normal'}] ${allPts[idx]?.text||''}`).join('; ');
+    const srcs = [...new Set(d.sources)].join(', ');
+    return `Day ${i+1} (${d.date.label}): ${d.isReview?'Review day':'Source: '+srcs} — Points: ${pts}`;
+  }).join('
+');
+
   try {
-    const datesStr = studyDates.map((d,i)=>i+': '+d.str+' ('+d.label+')').join(', ');
     const planLang = getLangStr();
     const prompt = `${planLang}
 
-Create a study plan for a student.
-Subject: ${t.subject}, Study time per day: ${mins} minutes
-${ptsList?'Points to cover:\n'+ptsList:''}
-${weak?'Weak spots: '+weak:''}
+A student is studying "${t.subject}" for ${mins} minutes per day. ${weak?'Weak spots: '+weak:''}
 
-Available study slots (index: date): ${datesStr}
-Scale to content — fewer points = fewer slots needed. Exam on ${exam}, no study that day.
+Here is the pre-assigned study schedule (DO NOT change the point assignments):
+${dayDescs}
 
-Respond ONLY with raw JSON (no markdown, no extra text):
-{"days":[{"label":"Mon 28 Apr","date":"2026-04-28","theme":"Short focus","pointIndexes":[0,1],"tasks":[{"icon":"📖","task":"task"}]}],"tips":["tip"]}`;
+For each day, write:
+- A short descriptive "theme" (5-8 words, in the correct language)
+- 2-3 specific "tasks" with icon + description (what the student should actually DO, e.g. read, write flashcards, practice)
+
+Respond ONLY with raw JSON, no markdown, no trailing commas:
+{"days":[{"theme":"Short descriptive theme","tasks":[{"icon":"📖","task":"What to do"}]}],"tips":["1 short practical tip"]}
+
+The "days" array must have exactly ${planDayStructure.length} entries in order.`;
 
     const resp = await groqText(prompt);
-    let parsed = parseJSON(resp);
-    // Always override AI dates with our computed correct ones
-    parsed.days = parsed.days.slice(0, studyDates.length).map((d, i) => {
-      const slot = studyDates[i];
-      return {...d, date: slot.str, label: slot.label};
-    });
-    t.plan = parsed;
+    const aiPlan = parseJSON(resp);
+
+    // Merge AI themes/tasks with our computed structure
+    const finalDays = planDayStructure.map((d, i) => ({
+      label: d.date.label,
+      date: d.date.str,
+      theme: aiPlan.days?.[i]?.theme || (d.isReview ? 'Review & Practice' : 'Study session'),
+      pointIndexes: d.ptIndexes,
+      sources: d.sources,
+      isReview: d.isReview || false,
+      tasks: aiPlan.days?.[i]?.tasks || []
+    }));
+
+    t.plan = { days: finalDays, tips: aiPlan.tips || [] };
     t.doneDays = new Set();
     saveTests();
-    renderPlanHTML(parsed, t);
+    renderPlanHTML(t.plan, t);
     renderSidebar(); renderDashboard(); renderSchedule();
     toast('✓ Plan ready');
   } catch(err) {
@@ -1084,26 +1225,35 @@ Respond ONLY with raw JSON (no markdown, no extra text):
 }
 
 function renderPlanHTML(plan, t) {
-  const days = (plan.days||[]);
+  const planDays = (plan.days||[]);
   const done = t.doneDays||new Set();
-  const pct = days.length ? Math.round([...done].length/days.length*100) : 0;
+  const pct = planDays.length ? Math.round([...done].length/planDays.length*100) : 0;
+  const allPts = t.summary?.points||[];
 
-  const grid = days.map((d,i) => {
-    const pts = (d.pointIndexes||[]).map(idx => t.summary?.points?.[idx]?.text).filter(Boolean);
-    return `<div class="plan-day ${done.has(i)?'done':''}" onclick="openDayModal(${i})">
-      <div class="pd-lbl">${esc(d.label)}</div>
+  // Group days by source for section headers
+  const grid = planDays.map((d,i) => {
+    const pts = (d.pointIndexes||[]).map(idx => allPts[idx]).filter(Boolean);
+    const srcs = [...new Set(d.sources||[])].filter(s=>s!=='review');
+    const srcLabel = d.isReview ? '🔁 Review' : srcs.map(s=>s.replace(/\.pdf$/i,'')).join(' + ');
+    const isDone = done.has(i);
+    return `<div class="plan-day ${isDone?'done':''} ${d.isReview?'review-day':''}" onclick="openDayModal(${i})">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="pd-lbl">${esc(d.label)}</div>
+        ${isDone?'<span style="color:var(--ok);font-size:0.8rem">✓</span>':''}
+      </div>
       <div class="pd-theme">${esc(d.theme)}</div>
-      <div class="pd-pts">${pts.slice(0,2).map(p=>p.length>45?p.slice(0,45)+'…':p).join('<br>')}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--ink3);margin:4px 0 6px;text-transform:uppercase;letter-spacing:0.06em">${esc(srcLabel)}</div>
+      <div class="pd-pts">${pts.slice(0,3).map(p=>`<span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.type==='wfw'?'★ ':p.type==='know'?'◎ ':'• '}${esc(p.text.length>42?p.text.slice(0,42)+'…':p.text)}</span>`).join('')}${pts.length>3?`<span style="color:var(--ink3);font-size:0.75rem">+${pts.length-3} more</span>`:''}</div>
     </div>`;
   }).join('');
 
   const tips = (plan.tips||[]).map(tip=>`<div style="padding:8px 0;border-bottom:1px solid var(--br);font-size:0.84rem;color:var(--ink3)">${esc(tip)}</div>`).join('');
 
   document.getElementById('plan-content').innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:500">${esc(t.subject)}</div>
-        <div style="font-size:0.8rem;color:var(--ink3);margin-top:2px">${days.length} study days · ${[...done].length} done</div>
+        <div style="font-size:0.8rem;color:var(--ink3);margin-top:2px">${planDays.length} study days · ${allPts.length} points · ${[...done].length} done</div>
       </div>
       <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ac)">${pct}% complete</div>
     </div>
@@ -1240,29 +1390,42 @@ async function sendChat() {
   const thinking = appendMsg('Thinking…', 'ai thinking');
   document.getElementById('chat-msgs').scrollTop = 9999;
 
-  const notes = t.summary?.clean || Object.values(t.notes?.extracted||{}).join('\n\n') || t.notes?.manualText || '';
-  const history = t.chatHistory.slice(-8).map(m=>`${m.role==='user'?'Student':'Assistant'}: ${m.content}`).join('\n');
+  // Gather all available text - file extractions + manual notes + clean summary
+  const fileTexts = (t.notes?.files||[]).filter(f=>f.text?.trim()).map(f=>f.text).join('\n\n');
+  const manualText2 = t.notes?.manualText || '';
+  const cleanSummary = t.summary?.clean || '';
+  // Use clean summary if available (already structured), else raw extracted text
+  const notes = cleanSummary || [fileTexts, manualText2].filter(Boolean).join('\n\n');
+
+  if (!notes.trim()) {
+    thinking.textContent = 'Keine Notizen gefunden. Bitte zuerst Dateien hochladen und "Extract Text" klicken.';
+    thinking.classList.remove('thinking');
+    return;
+  }
+
+  const history = t.chatHistory.slice(-10).map(m=>`${m.role==='user'?'Student':'Assistant'}: ${m.content}`).join('\n');
 
   try {
     const chatLang = getLangStr();
     const prompt = `${chatLang}
 
-You are a study assistant for the subject: "${t.subject}".
-Your job is to help the student understand the material from their notes.
+You are a helpful study assistant for the subject: "${t.subject}".
+The student has uploaded their notes. Use them to answer questions.
 
-NOTES:
-${notes.slice(0, 10000)}
+STUDENT NOTES:
+${notes.slice(0, 12000)}
 
-Rules:
-- Answer based on the notes above. You MAY add brief clarifications or examples if they genuinely help understanding.
-- If something is truly not covered in the notes at all, say so briefly — but first try to answer from what IS there.
-- Be helpful, direct, and conversational.
-- Write in the language instructed above.
+Instructions:
+- Answer the student's question using the notes above.
+- The answer IS in the notes — read carefully before saying it's not there.
+- Be direct and specific. Quote or paraphrase from the notes when relevant.
+- You may add a brief explanation if it helps understanding.
+- Write in the language instructed above. Match the language of the notes.
 
-Recent conversation:
+Conversation so far:
 ${history}
 
-Answer the student's last question:`;
+Now answer the student's last question concisely:`;
     const resp = await groqText(prompt);
     thinking.textContent = resp;
     thinking.classList.remove('thinking');
