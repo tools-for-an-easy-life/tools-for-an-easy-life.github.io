@@ -220,6 +220,38 @@ textarea{resize:vertical;line-height:1.6}
 .divider{height:1px;background:var(--br);margin:18px 0}
 .chip{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:0.68rem;font-family:'DM Mono',monospace;border:1px solid var(--br);color:var(--ink3)}
 canvas#cvs{display:none}
+/* ── DARK MODE ── */
+[data-theme="dark"] {
+  --bg:#111210;--s1:#191b18;--s2:#1f2320;--s3:#272b27;
+  --br:#2e332d;--brb:#404840;
+  --ink:#e8ede6;--ink2:#b8c4b4;--ink3:#6e7d6a;
+  --ac:#6abf8e;--ac2:#c8855a;--ac3:#7abf6a;
+  --red:#e06060;--ok:#6abf8e;
+  --tag1:#2d2416;--tag2:#162016;--tag3:#161622;--tag4:#221616;
+}
+[data-theme="dark"] body::after { opacity: 0.04; }
+[data-theme="dark"] input[type=password],[data-theme="dark"] input[type=text],[data-theme="dark"] input[type=date],[data-theme="dark"] textarea,[data-theme="dark"] select { color-scheme: dark; }
+
+/* ── SCHEDULE LIST ── */
+.sched-list { display: flex; flex-direction: column; gap: 0; }
+.sched-row { display: grid; grid-template-columns: 72px 1fr; gap: 0; border-bottom: 1px solid var(--br); padding: 14px 0; }
+.sched-row:last-child { border-bottom: none; }
+.sched-date-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 2px; padding-right: 16px; }
+.sched-dow { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+.sched-dom { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 700; line-height: 1; color: var(--ink); margin-bottom: 2px; }
+.sched-dom.today-dom { color: var(--ac); }
+.sched-dom.exam-dom { color: var(--red); }
+.sched-mon { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink3); text-transform: uppercase; }
+.sched-events { display: flex; flex-direction: column; gap: 7px; padding-top: 4px; }
+.sched-event { display: flex; align-items: flex-start; gap: 10px; padding: 10px 13px; border-radius: 10px; background: var(--s1); border: 1px solid var(--br); }
+.sched-event.exam { background: rgba(192,57,43,0.06); border-color: rgba(192,57,43,0.25); }
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ac); flex-shrink: 0; margin-top: 4px; }
+.sched-event.exam .sev-dot { background: var(--red); }
+.sev-body { flex: 1; }
+.sev-title { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
+.sev-sub { font-size: 0.75rem; color: var(--ink3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+.sched-empty-day { font-size: 0.82rem; color: var(--ink3); padding: 8px 0; font-style: italic; }
+
 
 /* steps */
 .steps-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
@@ -261,14 +293,17 @@ canvas#cvs{display:none}
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-text">Note<span>Flow</span></div>
-      <div class="logo-sub">study companion</div>
+    <div class="sidebar-logo" style="display:flex;align-items:flex-start;justify-content:space-between">
+      <div>
+        <div class="logo-text">Note<span>Flow</span></div>
+        <div class="logo-sub">study companion</div>
+      </div>
+      <button onclick="toggleDark()" id="dark-btn" title="Toggle dark mode" style="background:none;border:1px solid var(--br);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:0.9rem;color:var(--ink3);margin-top:2px">🌙</button>
     </div>
 
     <div class="sidebar-section">Overview</div>
     <button class="nav-item active" id="nav-dashboard" onclick="goView('dashboard')"><span class="ni-icon">🏠</span><span class="ni-label">Dashboard</span></button>
-    <button class="nav-item" id="nav-schedule" onclick="goView('schedule')"><span class="ni-icon">📆</span><span class="ni-label">Schedule</span></button>
+    <button class="nav-item" id="nav-schedule" onclick="goView('schedule');renderSchedule()"><span class="ni-icon">📆</span><span class="ni-label">Schedule</span></button>
 
     <div class="sidebar-section" style="margin-top:8px">Tests</div>
     <div id="test-nav-list"></div>
@@ -387,19 +422,22 @@ canvas#cvs{display:none}
         <div id="tt-plan" class="test-tab" style="display:none">
           <div class="card" style="margin-bottom:16px">
             <div class="card-hd"><div class="card-title"><span class="dot"></span> Plan settings</div></div>
-            <div class="row3">
-              <div class="field"><label>Exam date</label><input type="date" id="plan-exam-date"></div>
+            <div id="plan-no-date-warn" style="display:none;background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);border-radius:9px;padding:10px 13px;font-size:0.82rem;color:var(--red);margin-bottom:12px">
+              ⚠️ No exam date set for this test. <button class="btn btn-ghost btn-sm" onclick="openNewTestDateModal()" style="margin-left:8px">Set date</button>
+            </div>
+            <div id="plan-exam-info" style="margin-bottom:12px;font-size:0.85rem;color:var(--ink3)"></div>
+            <div class="row2">
               <div class="field"><label>Study time/day</label>
                 <select id="plan-time">
                   <option value="30">30 min</option><option value="60" selected>1 hour</option>
                   <option value="90">1.5 hours</option><option value="120">2 hours</option>
                 </select>
               </div>
-              <div class="field"><label>Weak spots</label><input type="text" id="plan-weak" placeholder="Optional"></div>
+              <div class="field"><label>Weak spots (optional)</label><input type="text" id="plan-weak" placeholder="e.g. confused about photosynthesis"></div>
             </div>
             <button class="btn btn-p btn-sm" onclick="runPlan()">Generate plan</button>
           </div>
-          <div id="plan-empty" class="empty-state" style="padding:24px 0"><span class="em">📅</span><p>Set the exam date and generate a plan.</p></div>
+          <div id="plan-empty" class="empty-state" style="padding:24px 0"><span class="em">📅</span><p>Hit Generate plan above.</p></div>
           <div id="plan-content" style="display:none"></div>
         </div>
 
@@ -447,6 +485,12 @@ let notifGranted = false, notifTimers = [];
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', () => {
+  // Apply saved theme
+  const savedTheme = localStorage.getItem('nf_theme');
+  if (savedTheme) {
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    if (savedTheme === 'dark') { const btn = document.getElementById('dark-btn'); if(btn) btn.textContent = '☀️'; }
+  }
   const k = sessionStorage.getItem('nf_k');
   const savedTests = localStorage.getItem('nf_tests');
   if (savedTests) try { tests = JSON.parse(savedTests); tests.forEach(t => { t.doneDays = new Set(t.doneDays||[]); }); } catch{}
@@ -470,6 +514,14 @@ function boot() {
   updateApiStatus();
   renderSidebar();
   renderDashboard();
+}
+
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  document.getElementById('dark-btn').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('nf_theme', newTheme);
 }
 
 function updateApiStatus() {
@@ -515,7 +567,20 @@ function goTestView(testId) {
   document.getElementById('defs-input').value = Object.keys(defModes).join('\n');
   document.getElementById('lang-pick').value = t.notes?.lang || 'keep';
   document.getElementById('ctx-input').value = t.notes?.ctx || '';
-  document.getElementById('plan-exam-date').value = t.examDate || '';
+  // Update plan tab info
+  const planInfo = document.getElementById('plan-exam-info');
+  const planWarn = document.getElementById('plan-no-date-warn');
+  if (planInfo && planWarn) {
+    if (t.examDate) {
+      const dLeft = daysUntil(t.examDate);
+      planInfo.textContent = 'Exam: ' + fmtDate(t.examDate) + ' · ' + (dLeft > 0 ? dLeft + ' days left' : 'Today!');
+      planWarn.style.display = 'none';
+      planInfo.style.display = 'block';
+    } else {
+      planInfo.style.display = 'none';
+      planWarn.style.display = 'block';
+    }
+  }
 
   renderFileList();
   renderDefs();
@@ -606,32 +671,53 @@ function renderSchedule() {
   // collect all events
   const events = [];
   const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = localDateStr(today);
 
   tests.forEach(t => {
-    if (t.examDate) events.push({date: t.examDate, type: 'exam', label: t.subject + ' exam'});
+    if (t.examDate) events.push({date: t.examDate, type: 'exam', label: t.subject + ' exam', sub: t.subject});
     (t.plan?.days||[]).forEach((d,i) => {
-      if (d.date) events.push({date: d.date, type: 'study', label: d.theme, sub: t.subject});
+      if (d.date) events.push({date: d.date, type: 'study', label: d.theme, sub: t.subject, dayIdx: i, testId: t.id});
     });
   });
 
   if (!events.length) { c.innerHTML = '<div class="empty-state"><span class="em">📆</span><p>Add tests and generate plans to see your schedule.</p></div>'; return; }
 
-  // build 21-day window
+  // build window: from earliest event or today, 28 days
+  const allDates = events.map(e=>e.date).filter(Boolean).sort();
+  const windowStart = new Date(today);
   const days = [];
-  for (let i = 0; i < 21; i++) {
-    const d = new Date(today); d.setDate(d.getDate() + i);
+  for (let i = 0; i < 28; i++) {
+    const d = new Date(windowStart); d.setDate(d.getDate() + i);
     days.push(d);
   }
 
-  c.innerHTML = `<div class="cal-wrap"><div class="cal-grid">${days.map(d => {
-    const ds = d.toISOString().split('T')[0];
-    const isToday = ds === today.toISOString().split('T')[0];
-    const dayEvents = events.filter(e => e.date === ds);
-    return `<div class="cal-day ${isToday?'today':''} ${dayEvents.some(e=>e.type==='exam')?'exam-day':''}">
-      <div class="cal-date">${d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}</div>
-      ${dayEvents.map(e => `<div class="cal-event ${e.type}">${e.type==='exam'?'📝 ':'📖 '}${esc(e.label)}</div>`).join('')}
+  // Group events by date
+  const byDate = {};
+  events.forEach(e => { if(!byDate[e.date])byDate[e.date]=[]; byDate[e.date].push(e); });
+
+  // Only show days with events + today
+  const activeDays = days.filter(d => { const ds=localDateStr(d); return ds===todayStr || byDate[ds]?.length; });
+
+  c.innerHTML = `<div class="sched-list">${activeDays.map(d => {
+    const ds = localDateStr(d);
+    const isToday = ds === todayStr;
+    const dayEvents = byDate[ds] || [];
+    return `<div class="sched-row">
+      <div class="sched-date-col">
+        <div class="sched-dow">${d.toLocaleDateString('en-GB',{weekday:'short'})}</div>
+        <div class="sched-dom ${isToday?'today-dom':''} ${dayEvents.some(e=>e.type==='exam')?'exam-dom':''} ">${d.getDate()}</div>
+        <div class="sched-mon">${d.toLocaleDateString('en-GB',{month:'short'})}</div>
+      </div>
+      <div class="sched-events">${dayEvents.length?dayEvents.map(e=>`<div class="sched-event ${e.type}">
+          <div class="sev-dot"></div>
+          <div class="sev-body">
+            <div class="sev-title">${esc(e.label)}</div>
+            <div class="sev-sub">${esc(e.sub)}${e.type==='exam'?' — Exam':''}</div>
+          </div>
+        </div>`).join(''):`<div class="sched-empty-day">No events</div>`}
+      </div>
     </div>`;
-  }).join('')}</div></div>`;
+  }).join('')}</div>`;
 }
 
 // ── NEW TEST MODAL ─────────────────────────────────────────────────────────────
@@ -866,8 +952,10 @@ async function runSummarise() {
 
   const wfw = Object.entries(defModes).filter(([,v])=>v==='wfw').map(([k])=>k);
   const know = Object.entries(defModes).filter(([,v])=>v==='know').map(([k])=>k);
-  const langStr = lang === 'keep' ? 'Keep the EXACT original language of the notes. Do NOT translate anything.'
-    : `Write everything in ${({'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian'})[lang]}.`;
+  const langMap = {'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian'};
+  const langStr = lang === 'keep'
+    ? 'CRITICAL: You MUST write your entire response in the SAME language as the notes. If the notes are in French, write in French. If German, write in German. Do NOT translate. Do NOT switch to English. Preserve the original language completely.'
+    : `CRITICAL: Write your ENTIRE response in ${langMap[lang]}. Translate the content from the notes into ${langMap[lang]}.`;
 
   goTestTab('summary', document.querySelectorAll('.inner-tab')[1]);
   document.getElementById('summary-empty').style.display = 'none';
@@ -885,7 +973,20 @@ Rules: points should cover everything important. wfw points include the exact de
     const resp = await groqText(prompt);
     const parsed = JSON.parse(resp.replace(/```json|```/g,'').trim());
     t.summary = parsed;
-    document.getElementById('plan-exam-date').value = t.examDate || '';
+    // Update plan tab info
+  const planInfo = document.getElementById('plan-exam-info');
+  const planWarn = document.getElementById('plan-no-date-warn');
+  if (planInfo && planWarn) {
+    if (t.examDate) {
+      const dLeft = daysUntil(t.examDate);
+      planInfo.textContent = 'Exam: ' + fmtDate(t.examDate) + ' · ' + (dLeft > 0 ? dLeft + ' days left' : 'Today!');
+      planWarn.style.display = 'none';
+      planInfo.style.display = 'block';
+    } else {
+      planInfo.style.display = 'none';
+      planWarn.style.display = 'block';
+    }
+  }
     saveTests();
     renderSummaryHTML(parsed);
     toast('✓ Summary ready');
@@ -920,12 +1021,11 @@ function renderSummaryHTML(d) {
 // ── PLAN ─────────────────────────────────────────────────────────────────────
 async function runPlan() {
   const t = getTest(); if (!t || !apiKey) return;
-  const exam = document.getElementById('plan-exam-date').value;
+  const exam = t.examDate;
   const mins = document.getElementById('plan-time').value;
   const weak = document.getElementById('plan-weak').value.trim();
-  if (!exam) { toast('⚠️ Set an exam date'); return; }
+  if (!exam) { toast('⚠️ Set an exam date for this test first'); return; }
 
-  t.examDate = exam; saveTests();
   const days = daysUntil(exam);
   if (days < 1) { toast('⚠️ Exam date must be in the future'); return; }
 
@@ -937,21 +1037,35 @@ async function runPlan() {
   const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}`).join('\n');
   const today = new Date(); today.setHours(0,0,0,0);
 
+  // Compute study dates ourselves so AI can't mess them up
+  const maxStudyDays = Math.min(days - 1, 14);
+  const studyDates = [];
+  for (let i = 1; i <= maxStudyDays; i++) {
+    const dd = new Date(today); dd.setDate(dd.getDate() + i);
+    const y=dd.getFullYear(),m=String(dd.getMonth()+1).padStart(2,'0'),d2=String(dd.getDate()).padStart(2,'0');
+    studyDates.push({ str: y+'-'+m+'-'+d2, label: dd.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) });
+  }
+
   try {
+    const datesStr = studyDates.map((d,i)=>i+': '+d.str+' ('+d.label+')').join(', ');
     const prompt = `Create a study plan for a student.
-Subject: ${t.subject}, Days until exam: ${days}, Study time per day: ${mins} minutes
+Subject: ${t.subject}, Study time per day: ${mins} minutes
 ${ptsList?'Points to cover:\n'+ptsList:''}
 ${weak?'Weak spots: '+weak:''}
 
-Scale the plan to the actual content — if there are few points, make fewer days. Max ${Math.min(days,14)} days.
-Each day assign specific point indexes from the list above.
-Give each day a real date starting from tomorrow.
+Available study slots (index: date): ${datesStr}
+Scale to content — fewer points = fewer slots needed. Exam on ${exam}, no study that day.
 
-Respond ONLY with raw JSON (no markdown):
+Respond ONLY with raw JSON (no markdown, no extra text):
 {"days":[{"label":"Mon 28 Apr","date":"2026-04-28","theme":"Short focus","pointIndexes":[0,1],"tasks":[{"icon":"📖","task":"task"}]}],"tips":["tip"]}`;
 
     const resp = await groqText(prompt);
-    const parsed = JSON.parse(resp.replace(/```json|```/g,'').trim());
+    let parsed = JSON.parse(resp.replace(/```json|```/g,'').trim());
+    // Always override AI dates with our computed correct ones
+    parsed.days = parsed.days.slice(0, studyDates.length).map((d, i) => {
+      const slot = studyDates[i];
+      return {...d, date: slot.str, label: slot.label};
+    });
     t.plan = parsed;
     t.doneDays = new Set();
     saveTests();
@@ -1152,15 +1266,15 @@ async function groqText(prompt) {
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function getTest() { return tests.find(t => t.id === currentTestId) || null; }
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-function daysUntil(dateStr) { if (!dateStr) return null; const d = new Date(dateStr+'T12:00:00'); const now = new Date(); now.setHours(0,0,0,0); return Math.ceil((d-now)/86400000); }
-function fmtDate(s) { return new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function daysUntil(dateStr) { if (!dateStr) return null; const [y,m,d]=dateStr.split('-').map(Number); const exam=new Date(y,m-1,d); const now=new Date(); now.setHours(0,0,0,0); exam.setHours(0,0,0,0); return Math.round((exam-now)/86400000); }
+function fmtDate(s) { if(!s)return''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function localDateStr(date) { const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0'); return y+'-'+m+'-'+d; }
 function cpEl(id) { navigator.clipboard.writeText(document.getElementById(id)?.textContent||''); toast('✓ Copied'); }
 
 let _tt;
 function toast(m) { const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),3000); }
 
-// wire up schedule tab to auto-render
-document.getElementById('nav-schedule').addEventListener('click', renderSchedule);
+
 </script>
 </body>
 </html>
