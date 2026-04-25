@@ -1468,7 +1468,7 @@ function getLangStr() {
 // Robust JSON parse — strips markdown fences and trailing garbage
 function parseJSON(raw) {
   // strip fences
-  let s = raw.replace(/```json|```/gi, '').trim();
+  let s = raw.replace(/[`]{3}json|[`]{3}/gi, '').trim();
   // find first { or [
   const start = s.search(/[\[{]/);
   if (start > 0) s = s.slice(start);
