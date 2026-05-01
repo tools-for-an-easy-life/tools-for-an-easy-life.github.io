@@ -4,393 +4,362 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NoteFlow</title>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <style>
-:root{
-  --bg:#f5f2eb;--s1:#edeae0;--s2:#e4e0d3;--s3:#d8d3c3;
-  --br:#c8c2ad;--brb:#a89f87;
-  --ink:#1a1710;--ink2:#3d3929;--ink3:#6b6550;
-  --ac:#2d4a3e;--ac2:#8b4513;--ac3:#4a6741;
-  --red:#c0392b;--ok:#27694f;
-  --tag1:#e8d5b7;--tag2:#d4e8d5;--tag3:#d5d4e8;--tag4:#e8d5d5;
+/* ── TOKENS ── */
+:root {
+  --bg:#f7f5f0; --s1:#edeae3; --s2:#e4e0d6; --s3:#d6d1c4;
+  --br:#c5bfaf; --brb:#a8a090;
+  --ink:#1c1a15; --ink2:#3d3929; --ink3:#7a7360;
+  --ac:#2e5d4b; --ac-light:rgba(46,93,75,0.1);
+  --warn:#8b4513; --warn-light:rgba(139,69,19,0.1);
+  --ok:#2a6644; --ok-light:rgba(42,102,68,0.1);
+  --err:#b03020; --err-light:rgba(176,48,32,0.08);
+  --r: 10px;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--ink);font-family:'Instrument Sans',sans-serif;min-height:100vh;line-height:1.5}
+[data-dark] {
+  --bg:#111310; --s1:#181b17; --s2:#1f2320; --s3:#272c26;
+  --br:#2d3329; --brb:#404d3c;
+  --ink:#e5ead8; --ink2:#b0bc9e; --ink3:#6b7860;
+  --ac:#5aad88; --ac-light:rgba(90,173,136,0.12);
+  --warn:#c8855a; --warn-light:rgba(200,133,90,0.12);
+  --ok:#5aad88; --ok-light:rgba(90,173,136,0.1);
+  --err:#e07060; --err-light:rgba(224,112,96,0.1);
+}
 
-/* noise texture overlay */
-body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.025;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+/* ── RESET ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;transition:background 0.2s,color 0.2s}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--br);border-radius:2px}
+a{color:var(--ac);text-decoration:none}
+a:hover{text-decoration:underline}
 
 /* ── LAYOUT ── */
-.app-shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
 .sidebar{background:var(--s1);border-right:1px solid var(--br);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
-.main{overflow:hidden}
+.main{overflow:hidden;min-width:0}
 
 /* ── SIDEBAR ── */
-.sidebar-logo{padding:24px 20px 16px;border-bottom:1px solid var(--br)}
-.logo-text{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:var(--ink);letter-spacing:-0.03em}
-.logo-text span{color:var(--ac)}
-.logo-sub{font-size:0.72rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:2px}
+.sb-top{padding:20px 16px 14px;border-bottom:1px solid var(--br);display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;letter-spacing:-0.02em;color:var(--ink)}
+.logo em{color:var(--ac);font-style:normal}
+.icon-btn{background:none;border:1px solid var(--br);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:0.9rem;color:var(--ink3);transition:all 0.15s}
+.icon-btn:hover{background:var(--s2);color:var(--ink)}
 
-.sidebar-section{padding:12px 14px 4px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em}
+.sb-section{padding:10px 16px 4px;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em}
 
-.nav-item{display:flex;align-items:center;gap:9px;padding:9px 14px;border-radius:8px;margin:1px 8px;cursor:pointer;transition:all 0.15s;font-size:0.86rem;color:var(--ink2);border:none;background:transparent;width:calc(100% - 16px);text-align:left;font-family:'Instrument Sans',sans-serif}
-.nav-item:hover{background:var(--s2);color:var(--ink)}
-.nav-item.active{background:var(--ac);color:#f5f2eb;font-weight:600}
-.nav-item .ni-icon{font-size:1rem;flex-shrink:0;width:18px;text-align:center}
-.nav-item .ni-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nav-item .ni-badge{font-family:'DM Mono',monospace;font-size:0.62rem;background:rgba(0,0,0,0.12);padding:2px 6px;border-radius:10px;flex-shrink:0}
+.nb{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:8px;margin:1px 6px;cursor:pointer;transition:all 0.12s;font-size:0.84rem;color:var(--ink2);border:none;background:transparent;width:calc(100% - 12px);text-align:left;font-family:'DM Sans',sans-serif}
+.nb:hover{background:var(--s2);color:var(--ink)}
+.nb.on{background:var(--ac);color:#fff;font-weight:600}
+.nb .ni{font-size:0.95rem;width:17px;text-align:center;flex-shrink:0}
+.nb .nl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb .nd{font-family:'DM Mono',monospace;font-size:0.6rem;background:rgba(0,0,0,0.12);padding:2px 6px;border-radius:10px;flex-shrink:0}
+.nb.on .nd{background:rgba(255,255,255,0.2)}
 
-.sidebar-bottom{margin-top:auto;padding:12px 8px;border-top:1px solid var(--br)}
-.api-status{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);padding:8px 12px;display:flex;align-items:center;gap:6px}
-.api-dot{width:6px;height:6px;border-radius:50%;background:var(--red);flex-shrink:0}
+.sb-bot{margin-top:auto;padding:10px 8px 14px;border-top:1px solid var(--br)}
+.api-pill{display:flex;align-items:center;gap:7px;padding:7px 12px;font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3)}
+.api-dot{width:6px;height:6px;border-radius:50%;background:var(--err);flex-shrink:0}
 .api-dot.ok{background:var(--ok)}
 
-/* ── MAIN CONTENT ── */
-.view{display:none;height:100vh;overflow-y:auto}
-.view.active{display:flex;flex-direction:column}
-.view-header{padding:28px 36px 0;border-bottom:1px solid var(--br);background:var(--bg);position:sticky;top:0;z-index:10}
-.view-title{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:500;letter-spacing:-0.03em;color:var(--ink)}
-.view-sub{color:var(--ink3);font-size:0.84rem;margin-top:4px;padding-bottom:18px}
-.view-body{padding:28px 36px;flex:1}
+/* ── VIEWS ── */
+.view{display:none;height:100vh;overflow-y:auto;flex-direction:column}
+.view.on{display:flex}
+.vh{padding:24px 32px 0;border-bottom:1px solid var(--br);background:var(--bg);position:sticky;top:0;z-index:10}
+.vh-title{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:500;letter-spacing:-0.03em;margin-bottom:4px}
+.vh-sub{color:var(--ink3);font-size:0.82rem;padding-bottom:16px}
+.vb{padding:24px 32px;flex:1}
+
+/* ── INNER TABS ── */
+.itabs{display:flex;gap:2px;background:var(--s2);padding:4px;border-radius:9px;width:fit-content;margin-bottom:0}
+.it{padding:7px 16px;border-radius:7px;border:none;background:transparent;color:var(--ink3);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;transition:all 0.12s}
+.it:hover{color:var(--ink)}
+.it.on{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
 
 /* ── SETUP ── */
-.setup-center{max-width:480px;margin:0 auto;padding:60px 24px}
-.setup-card{background:var(--s1);border:1px solid var(--br);border-radius:16px;padding:32px}
-.setup-icon{font-size:2.8rem;margin-bottom:16px;display:block}
-.setup-card h2{font-family:'Fraunces',serif;font-size:1.8rem;font-weight:500;margin-bottom:8px;letter-spacing:-0.03em}
-.setup-card p{color:var(--ink3);font-size:0.88rem;line-height:1.6;margin-bottom:20px}
-.info-box{background:rgba(39,105,79,0.08);border:1px solid rgba(39,105,79,0.25);border-radius:10px;padding:11px 14px;font-size:0.81rem;color:var(--ok);line-height:1.6;margin-bottom:18px}
-.info-box a{color:var(--ok);font-weight:600}
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);padding:24px}
+.setup-card{background:var(--s1);border:1px solid var(--br);border-radius:16px;padding:36px;max-width:460px;width:100%}
+.setup-icon{font-size:2.4rem;display:block;margin-bottom:14px}
+.setup-card h2{font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;margin-bottom:8px;letter-spacing:-0.03em}
+.setup-card p{color:var(--ink3);font-size:0.88rem;line-height:1.65;margin-bottom:18px}
+.info-box{background:var(--ok-light);border:1px solid rgba(42,102,68,0.25);border-radius:9px;padding:11px 14px;font-size:0.8rem;color:var(--ok);line-height:1.6;margin-bottom:18px}
 
 /* ── FORMS ── */
 label{display:block;font-size:0.72rem;color:var(--ink3);margin-bottom:5px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;font-family:'DM Mono',monospace}
-input[type=password],input[type=text],input[type=date],textarea,select{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:9px;padding:10px 14px;color:var(--ink);font-family:'Instrument Sans',sans-serif;font-size:0.9rem;outline:none;transition:border-color 0.2s;-webkit-appearance:none}
-input:focus,textarea:focus,select:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(45,74,62,0.1)}
-select{cursor:pointer}
+input,textarea,select{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:var(--r);padding:10px 13px;color:var(--ink);font-family:'DM Sans',sans-serif;font-size:0.88rem;outline:none;transition:border-color 0.15s;-webkit-appearance:none}
+input:focus,textarea:focus,select:focus{border-color:var(--ac)}
 textarea{resize:vertical;line-height:1.6}
-.field{margin-bottom:15px}
-.field:last-child{margin-bottom:0}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-@media(max-width:700px){.row2,.row3{grid-template-columns:1fr}}
+select{cursor:pointer}
+.field{margin-bottom:14px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+@media(max-width:640px){.r2,.r3{grid-template-columns:1fr}}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:9px;border:none;font-family:'Instrument Sans',sans-serif;font-size:0.86rem;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap}
-.btn-p{background:var(--ac);color:#f5f2eb}.btn-p:hover{background:#213d32;transform:translateY(-1px)}.btn-p:disabled{opacity:0.4;cursor:not-allowed;transform:none}
-.btn-o{background:var(--ac2);color:#f5f2eb}.btn-o:hover{background:#6b3410;transform:translateY(-1px)}.btn-o:disabled{opacity:0.4;cursor:not-allowed;transform:none}
-.btn-ghost{background:transparent;color:var(--ink2);border:1px solid var(--br)}.btn-ghost:hover{background:var(--s2);color:var(--ink)}
-.btn-danger{background:transparent;color:var(--red);border:1px solid rgba(192,57,43,0.3)}.btn-danger:hover{background:rgba(192,57,43,0.08)}
-.btn-sm{padding:7px 13px;font-size:0.8rem;border-radius:7px}
-.btn-xs{padding:4px 9px;font-size:0.74rem;border-radius:6px}
-.btn-full{width:100%;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--r);border:none;font-family:'DM Sans',sans-serif;font-size:0.84rem;font-weight:600;cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.bp{background:var(--ac);color:#fff}.bp:hover{filter:brightness(1.1);transform:translateY(-1px)}.bp:disabled{opacity:0.4;cursor:not-allowed;transform:none;filter:none}
+.bw{background:var(--warn);color:#fff}.bw:hover{filter:brightness(1.1);transform:translateY(-1px)}.bw:disabled{opacity:0.4;cursor:not-allowed;transform:none;filter:none}
+.bg{background:var(--s2);color:var(--ink2);border:1px solid var(--br)}.bg:hover{background:var(--s3);color:var(--ink)}
+.br2{background:transparent;color:var(--err);border:1px solid rgba(176,48,32,0.3)}.br2:hover{background:var(--err-light)}
+.bsm{padding:6px 12px;font-size:0.78rem;border-radius:7px}
+.bxs{padding:4px 9px;font-size:0.73rem;border-radius:6px}
+.bfull{width:100%;justify-content:center}
 
 /* ── CARDS ── */
-.card{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:20px}
-.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.card-title{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:7px}
-.card-title .dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0}
-.dot-o{background:var(--ac2)!important}.dot-r{background:var(--red)!important}.dot-g{background:var(--ok)!important}
+.card{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:18px}
+.card+.card{margin-top:12px}
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.ct{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.1em;display:flex;align-items:center;gap:7px}
+.ct .dot{width:6px;height:6px;border-radius:50%;background:var(--ac);flex-shrink:0}
+.dot-w{background:var(--warn)!important}
+.dot-o{background:var(--ok)!important}
 
-/* ── TEST CARDS ON DASHBOARD ── */
-.tests-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-.test-card{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:18px;cursor:pointer;transition:all 0.15s;position:relative}
-.test-card:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 4px 16px rgba(45,74,62,0.1)}
-.test-card-subject{font-family:'Fraunces',serif;font-size:1.1rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.02em}
-.test-card-date{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--ink3);margin-bottom:10px}
-.test-card-stats{display:flex;gap:8px;flex-wrap:wrap}
-.stat-chip{font-family:'DM Mono',monospace;font-size:0.65rem;padding:3px 8px;border-radius:20px;border:1px solid var(--br);color:var(--ink3)}
-.stat-chip.urgent{border-color:rgba(192,57,43,0.4);color:var(--red);background:rgba(192,57,43,0.06)}
-.stat-chip.ok{border-color:rgba(39,105,79,0.4);color:var(--ok);background:rgba(39,105,79,0.06)}
-.test-card-bar{height:3px;background:var(--s3);border-radius:2px;margin-top:12px;overflow:hidden}
-.test-card-bar-fill{height:100%;background:var(--ac);border-radius:2px;transition:width 0.5s}
+/* ── DASHBOARD ── */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.tcard{background:var(--s1);border:1px solid var(--br);border-radius:14px;padding:16px;cursor:pointer;transition:all 0.15s}
+.tcard:hover{border-color:var(--ac);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.tc-sub{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:500;margin-bottom:3px;letter-spacing:-0.02em}
+.tc-date{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3);margin-bottom:10px}
+.tc-chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-family:'DM Mono',monospace;font-size:0.62rem;padding:2px 8px;border-radius:20px;border:1px solid var(--br);color:var(--ink3)}
+.chip.urg{border-color:rgba(176,48,32,0.4);color:var(--err);background:var(--err-light)}
+.chip.good{border-color:rgba(42,102,68,0.4);color:var(--ok);background:var(--ok-light)}
+.prog{height:3px;background:var(--s3);border-radius:2px;margin-top:12px;overflow:hidden}
+.prog-fill{height:100%;background:var(--ac);border-radius:2px;transition:width 0.4s}
 
-/* ── OVERVIEW CALENDAR ── */
-.cal-wrap{overflow-x:auto;padding-bottom:8px}
-.cal-grid{display:grid;grid-auto-columns:minmax(100px,1fr);grid-auto-flow:column;gap:8px;min-width:max-content}
-.cal-day{background:var(--s1);border:1px solid var(--br);border-radius:11px;padding:12px;min-width:100px}
-.cal-day.today{border-color:var(--ac);background:rgba(45,74,62,0.04)}
-.cal-day.exam-day{border-color:var(--red);background:rgba(192,57,43,0.04)}
-.cal-date{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3);margin-bottom:8px}
-.cal-event{font-size:0.75rem;padding:4px 7px;border-radius:6px;margin-bottom:4px;line-height:1.3}
-.cal-event.study{background:var(--tag2);color:#1a3d22}
-.cal-event.exam{background:var(--tag4);color:#5a1010;font-weight:600}
+/* ── SCHEDULE ── */
+.sched{display:flex;flex-direction:column;gap:0}
+.srow{display:grid;grid-template-columns:72px 1fr;border-bottom:1px solid var(--br);padding:14px 0}
+.srow:last-child{border-bottom:none}
+.sdate{display:flex;flex-direction:column;align-items:center;padding-right:16px}
+.sdow{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px}
+.sdom{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:700;line-height:1;color:var(--ink)}
+.sdom.today{color:var(--ac)}
+.sdom.exam{color:var(--err)}
+.smon{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink3);text-transform:uppercase;margin-top:2px}
+.sevents{display:flex;flex-direction:column;gap:6px;padding-top:4px}
+.sev{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border-radius:9px;background:var(--s1);border:1px solid var(--br)}
+.sev.exam{background:var(--err-light);border-color:rgba(176,48,32,0.25)}
+.sev-dot{width:7px;height:7px;border-radius:50%;background:var(--ac);flex-shrink:0;margin-top:4px}
+.sev.exam .sev-dot{background:var(--err)}
+.sev-title{font-size:0.86rem;font-weight:600}
+.sev-meta{font-size:0.73rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:2px}
 
-/* ── UPLOAD ── */
-.drop{border:2px dashed var(--br);border-radius:14px;padding:44px 28px;text-align:center;background:var(--s1);transition:all 0.2s;cursor:pointer}
+/* ── FILE LIST ── */
+.drop{border:2px dashed var(--br);border-radius:12px;padding:32px 24px;text-align:center;background:var(--s1);cursor:pointer;transition:all 0.2s}
 .drop:hover,.drop.over{border-color:var(--ac);background:var(--s2)}
-.drop h3{font-family:'Fraunces',serif;font-size:1.2rem;font-weight:400;margin:10px 0 4px;letter-spacing:-0.02em}
-.drop p{color:var(--ink3);font-size:0.83rem}
-.drop-note{background:rgba(139,69,19,0.07);border:1px solid rgba(139,69,19,0.2);border-radius:9px;padding:10px 13px;font-size:0.8rem;color:var(--ac2);line-height:1.5;margin-top:12px;text-align:left}
-
-.file-list{margin-top:12px;display:flex;flex-direction:column;gap:6px}
-.file-row{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:10px 12px}
-.file-icon{font-size:1.1rem;flex-shrink:0}
-.file-name{flex:1;font-size:0.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-status{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--ink3)}
-.file-status.ok{color:var(--ok)}.file-status.err{color:var(--red)}.file-status.run{color:var(--ac)}
-.file-rm{background:none;border:none;color:var(--ink3);cursor:pointer;font-size:0.9rem;padding:2px 4px;border-radius:4px}
-.file-rm:hover{color:var(--red)}
-.file-progress{height:3px;background:var(--s3);border-radius:2px;margin-top:6px;overflow:hidden;display:none}
-.file-pbar{height:100%;background:var(--ac);border-radius:2px;transition:width 0.2s}
+.drop h3{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:500;margin:8px 0 4px}
+.drop p{color:var(--ink3);font-size:0.8rem}
+.drop-warn{background:var(--warn-light);border:1px solid rgba(139,69,19,0.2);border-radius:8px;padding:8px 11px;font-size:0.77rem;color:var(--warn);margin-top:10px;text-align:left;line-height:1.5}
+.flist{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.frow{display:flex;align-items:center;gap:10px;background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:9px 12px}
+.ficon{font-size:1rem;flex-shrink:0}
+.fname{flex:1;font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fst{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3)}
+.fst.ok{color:var(--ok)}.fst.err{color:var(--err)}.fst.run{color:var(--ac)}
+.frm{background:none;border:none;color:var(--ink3);cursor:pointer;padding:2px 5px;border-radius:4px;font-size:0.85rem}
+.frm:hover{color:var(--err)}
+.fpbar-wrap{width:70px;background:var(--s3);border-radius:3px;height:3px;overflow:hidden}
+.fpbar{height:100%;background:var(--ac);border-radius:3px;transition:width 0.2s;width:0%}
 
 /* ── DEF TOGGLES ── */
-.def-item{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--br)}
+.def-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--br)}
 .def-item:last-child{border-bottom:none}
-.def-term{flex:1;font-size:0.86rem}
-.def-toggle{font-family:'DM Mono',monospace;font-size:0.66rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid;transition:all 0.15s;background:none;font-family:'DM Mono',monospace}
-.def-toggle.wfw{border-color:rgba(139,69,19,0.4);color:var(--ac2);background:rgba(139,69,19,0.07)}
-.def-toggle.know{border-color:rgba(39,105,79,0.4);color:var(--ok);background:rgba(39,105,79,0.07)}
+.def-term{flex:1;font-size:0.85rem}
+.def-tog{font-family:'DM Mono',monospace;font-size:0.63rem;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid;background:none;transition:all 0.12s}
+.def-tog.wfw{border-color:rgba(139,69,19,0.4);color:var(--warn);background:var(--warn-light)}
+.def-tog.know{border-color:rgba(42,102,68,0.4);color:var(--ok);background:var(--ok-light)}
 
 /* ── LEARNING POINTS ── */
-.lp-list{list-style:none}
-.lp-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--br);font-size:0.87rem;line-height:1.6;align-items:flex-start}
-.lp-item:last-child{border-bottom:none}
-.lp-n{font-family:'DM Mono',monospace;font-size:0.66rem;color:var(--ac);background:rgba(45,74,62,0.1);border-radius:5px;padding:2px 6px;min-width:24px;text-align:center;margin-top:2px;flex-shrink:0}
-.lp-wfw .lp-n{background:rgba(139,69,19,0.1);color:var(--ac2)}
-.lp-def{margin-top:5px;font-size:0.81rem;color:var(--ink3);background:var(--s2);padding:7px 10px;border-radius:7px;border-left:2px solid var(--ac2);line-height:1.5}
-.tag{font-family:'DM Mono',monospace;font-size:0.62rem;padding:2px 7px;border-radius:20px;margin-right:5px}
-.tag-wfw{background:var(--tag1);color:#5a3010}
-.tag-know{background:var(--tag2);color:#1a4020}
+.lplist{list-style:none}
+.lpitem{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--br);align-items:flex-start}
+.lpitem:last-child{border-bottom:none}
+.lpn{font-family:'DM Mono',monospace;font-size:0.63rem;color:var(--ac);background:var(--ac-light);border-radius:5px;padding:2px 6px;min-width:24px;text-align:center;margin-top:2px;flex-shrink:0}
+.lpitem.wfw .lpn{background:var(--warn-light);color:var(--warn)}
+.lp-body{font-size:0.86rem;line-height:1.6}
+.lp-def{margin-top:5px;font-size:0.8rem;color:var(--ink3);background:var(--s2);padding:7px 10px;border-radius:7px;border-left:2px solid var(--warn);line-height:1.5;font-style:italic}
+.lp-tag{font-family:'DM Mono',monospace;font-size:0.6rem;padding:2px 7px;border-radius:20px;margin-right:5px;display:inline-block;margin-bottom:3px}
+.lp-tag.wfw{background:var(--warn-light);color:var(--warn)}
+.lp-tag.know{background:var(--ok-light);color:var(--ok)}
 
 /* ── PLAN DAYS ── */
-.plan-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.plan-day{background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s}
-.plan-day:hover{border-color:var(--ac);transform:translateY(-1px)}
-.plan-day.done{border-color:var(--ok);background:rgba(39,105,79,0.04)}
-.plan-day.done::after{content:'✓';float:right;color:var(--ok);font-weight:700}
-.pd-lbl{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ac);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:4px}
-.pd-theme{font-weight:600;font-size:0.88rem;margin-bottom:6px}
-.pd-pts{font-size:0.75rem;color:var(--ink3);line-height:1.4}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.pday{background:var(--s1);border:1px solid var(--br);border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s;position:relative}
+.pday:hover{border-color:var(--ac);transform:translateY(-1px)}
+.pday.done{border-color:var(--ok);background:var(--ok-light)}
+.pday.review{border-style:dashed;border-color:var(--ac)}
+.pd-label{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--ac);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.pd-theme{font-weight:600;font-size:0.88rem;margin-bottom:4px;line-height:1.3}
+.pd-src{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em}
+.pd-pts{font-size:0.75rem;color:var(--ink3);line-height:1.5}
+.pd-done-tick{position:absolute;top:10px;right:12px;color:var(--ok);font-weight:700;font-size:0.9rem}
+.pd-count{font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink3);margin-top:6px}
 
 /* ── MODAL ── */
-.overlay{position:fixed;inset:0;background:rgba(26,23,16,0.6);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
-.modal{background:var(--bg);border:1px solid var(--brb);border-radius:18px;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding:28px;position:relative}
-.modal-close{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--ink2);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:0.8rem;font-family:'Instrument Sans',sans-serif}
-.modal h2{font-family:'Fraunces',serif;font-size:1.4rem;font-weight:500;margin-bottom:4px;letter-spacing:-0.02em}
-.modal-sub{color:var(--ink3);font-size:0.82rem;margin-bottom:18px}
-.modal-section{margin-bottom:18px}
-.modal-section-title{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(3px)}
+.modal{background:var(--bg);border:1px solid var(--brb);border-radius:16px;width:100%;max-width:580px;max-height:88vh;overflow-y:auto;padding:24px;position:relative}
+.modal-x{position:absolute;top:12px;right:12px;background:var(--s2);border:1px solid var(--br);color:var(--ink3);border-radius:7px;padding:4px 9px;cursor:pointer;font-size:0.78rem;font-family:'DM Sans',sans-serif}
+.mh2{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:500;margin-bottom:3px;letter-spacing:-0.02em}
+.msub{color:var(--ink3);font-size:0.8rem;margin-bottom:18px}
+.msec-title{font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px}
 
 /* ── QUIZ ── */
-.quiz-q{font-size:0.95rem;font-weight:600;line-height:1.6;margin-bottom:14px;padding:14px;background:var(--s2);border-radius:11px;border-left:3px solid var(--ac)}
-.quiz-opts{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
-.quiz-opt{background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:10px 14px;cursor:pointer;font-size:0.86rem;text-align:left;color:var(--ink);font-family:'Instrument Sans',sans-serif;transition:all 0.15s}
-.quiz-opt:hover:not(:disabled){border-color:var(--ac);background:var(--s2)}
-.quiz-opt.correct{border-color:var(--ok);background:rgba(39,105,79,0.1);color:var(--ok)}
-.quiz-opt.wrong{border-color:var(--red);background:rgba(192,57,43,0.08);color:var(--red)}
-.quiz-opt:disabled{cursor:default}
+.quiz-q{font-size:0.95rem;font-weight:600;line-height:1.6;padding:14px;background:var(--s2);border-radius:10px;border-left:3px solid var(--ac);margin-bottom:14px}
+.quiz-opts{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.qopt{background:var(--s1);border:1px solid var(--br);border-radius:9px;padding:10px 14px;cursor:pointer;font-size:0.85rem;text-align:left;color:var(--ink);font-family:'DM Sans',sans-serif;transition:all 0.12s}
+.qopt:hover:not(:disabled){border-color:var(--ac);background:var(--s2)}
+.qopt.correct{border-color:var(--ok);background:var(--ok-light);color:var(--ok);font-weight:600}
+.qopt.wrong{border-color:var(--err);background:var(--err-light);color:var(--err)}
+.qopt:disabled{cursor:default}
 .quiz-exp{font-size:0.82rem;color:var(--ink3);padding:10px 12px;background:var(--s2);border-radius:9px;margin-bottom:12px;line-height:1.6;border-left:3px solid var(--br)}
+.quiz-write{width:100%;border:1px solid var(--br);border-radius:9px;padding:11px 13px;font-family:'DM Sans',sans-serif;font-size:0.88rem;background:var(--s1);color:var(--ink);margin-bottom:10px;min-height:80px;resize:vertical;outline:none}
+.quiz-write:focus{border-color:var(--ac)}
+.quiz-feedback{padding:10px 13px;border-radius:9px;font-size:0.82rem;margin-bottom:12px;line-height:1.6}
+.quiz-feedback.good{background:var(--ok-light);border:1px solid rgba(42,102,68,0.25);color:var(--ok)}
+.quiz-feedback.bad{background:var(--err-light);border:1px solid rgba(176,48,32,0.2);color:var(--err)}
+.quiz-prog{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink3);margin-bottom:12px}
 
 /* ── CHAT ── */
-.chat-wrap{display:flex;flex-direction:column;height:500px;background:var(--s1);border:1px solid var(--br);border-radius:14px;overflow:hidden}
-.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.chat-input-area{padding:12px;border-top:1px solid var(--br);display:flex;gap:8px;background:var(--bg)}
-.chat-input-area input{flex:1}
-.msg{max-width:80%;padding:10px 14px;border-radius:12px;font-size:0.87rem;line-height:1.6}
-.msg.user{align-self:flex-end;background:var(--ac);color:#f5f2eb;border-bottom-right-radius:4px}
-.msg.ai{align-self:flex-start;background:var(--s2);border:1px solid var(--br);color:var(--ink);border-bottom-left-radius:4px}
+.chat-wrap{display:flex;flex-direction:column;height:460px;background:var(--s1);border:1px solid var(--br);border-radius:12px;overflow:hidden}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:9px}
+.chat-in-row{padding:10px;border-top:1px solid var(--br);display:flex;gap:8px;background:var(--bg)}
+.chat-in-row input{flex:1}
+.msg{max-width:82%;padding:10px 13px;border-radius:11px;font-size:0.86rem;line-height:1.6}
+.msg.u{align-self:flex-end;background:var(--ac);color:#fff;border-bottom-right-radius:4px}
+.msg.a{align-self:flex-start;background:var(--s2);border:1px solid var(--br);color:var(--ink);border-bottom-left-radius:4px}
 .msg.thinking{color:var(--ink3);font-style:italic}
 
-/* ── NOTES EDITOR ── */
-.notes-area{background:var(--bg);border:1px solid var(--br);border-radius:10px;width:100%;padding:14px;font-family:'Instrument Sans',sans-serif;font-size:0.88rem;line-height:1.7;color:var(--ink);min-height:120px;resize:vertical;outline:none;transition:border-color 0.2s}
-.notes-area:focus{border-color:var(--ac)}
-
-/* ── PROGRESS BAR ── */
-.prog-wrap{background:var(--s3);border-radius:20px;height:6px;overflow:hidden;margin:8px 0}
-.prog-bar{height:100%;background:var(--ac);border-radius:20px;transition:width 0.4s}
-
 /* ── MISC ── */
-.spinner{width:28px;height:28px;border:2.5px solid var(--s3);border-top-color:var(--ac);border-radius:50%;animation:spin 0.7s linear infinite}
+.spinner{width:28px;height:28px;border:2.5px solid var(--s3);border-top-color:var(--ac);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading{display:flex;align-items:center;gap:12px;padding:20px;color:var(--ink3);font-size:0.84rem}
-.section-loading{display:flex;flex-direction:column;align-items:center;padding:48px;gap:14px;color:var(--ink3);font-size:0.84rem}
+.loading{display:flex;align-items:center;gap:12px;padding:24px;color:var(--ink3);font-size:0.84rem}
+.sec-load{display:flex;flex-direction:column;align-items:center;padding:48px;gap:14px;color:var(--ink3);font-size:0.84rem}
 
-.empty-state{text-align:center;padding:48px 24px;color:var(--ink3)}
-.empty-state .em{font-size:2.4rem;display:block;margin-bottom:12px}
-.empty-state p{font-size:0.86rem;line-height:1.6}
+.empty{text-align:center;padding:44px 20px;color:var(--ink3)}
+.empty .em{font-size:2.2rem;display:block;margin-bottom:11px}
+.empty p{font-size:0.85rem;line-height:1.65}
 
-.actions-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.hint-text{font-size:0.75rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:7px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.hint{font-size:0.72rem;color:var(--ink3);font-family:'DM Mono',monospace;margin-top:7px}
 
-#toast{position:fixed;bottom:22px;right:22px;background:var(--ink);color:var(--bg);border-radius:9px;padding:10px 15px;font-size:0.83rem;z-index:9999;transform:translateY(50px);opacity:0;transition:all 0.25s;max-width:260px}
-#toast.show{transform:translateY(0);opacity:1}
+#toast{position:fixed;bottom:20px;right:20px;background:var(--ink);color:var(--bg);border-radius:9px;padding:10px 15px;font-size:0.82rem;z-index:9999;transform:translateY(50px);opacity:0;transition:all 0.22s;max-width:260px;pointer-events:none}
+#toast.on{transform:translateY(0);opacity:1}
 
-.divider{height:1px;background:var(--br);margin:18px 0}
-.chip{display:inline-flex;padding:2px 8px;border-radius:20px;font-size:0.68rem;font-family:'DM Mono',monospace;border:1px solid var(--br);color:var(--ink3)}
-canvas#cvs{display:none}
-/* ── DARK MODE ── */
-[data-theme="dark"] {
-  --bg:#111210;--s1:#191b18;--s2:#1f2320;--s3:#272b27;
-  --br:#2e332d;--brb:#404840;
-  --ink:#e8ede6;--ink2:#b8c4b4;--ink3:#6e7d6a;
-  --ac:#6abf8e;--ac2:#c8855a;--ac3:#7abf6a;
-  --red:#e06060;--ok:#6abf8e;
-  --tag1:#2d2416;--tag2:#162016;--tag3:#161622;--tag4:#221616;
-}
-[data-theme="dark"] body::after { opacity: 0.04; }
-[data-theme="dark"] input[type=password],[data-theme="dark"] input[type=text],[data-theme="dark"] input[type=date],[data-theme="dark"] textarea,[data-theme="dark"] select { color-scheme: dark; }
+.hr{height:1px;background:var(--br);margin:16px 0}
+.pt-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;font-size:0.84rem;color:var(--ink2);border-bottom:1px solid var(--br)}
+.pt-row:last-child{border-bottom:none}
 
-/* ── SCHEDULE LIST ── */
-.sched-list { display: flex; flex-direction: column; gap: 0; }
-.sched-row { display: grid; grid-template-columns: 72px 1fr; gap: 0; border-bottom: 1px solid var(--br); padding: 14px 0; }
-.sched-row:last-child { border-bottom: none; }
-.sched-date-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 2px; padding-right: 16px; }
-.sched-dow { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-.sched-dom { font-family: 'Fraunces', serif; font-size: 1.8rem; font-weight: 700; line-height: 1; color: var(--ink); margin-bottom: 2px; }
-.sched-dom.today-dom { color: var(--ac); }
-.sched-dom.exam-dom { color: var(--red); }
-.sched-mon { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink3); text-transform: uppercase; }
-.sched-events { display: flex; flex-direction: column; gap: 7px; padding-top: 4px; }
-.sched-event { display: flex; align-items: flex-start; gap: 10px; padding: 10px 13px; border-radius: 10px; background: var(--s1); border: 1px solid var(--br); }
-.sched-event.exam { background: rgba(192,57,43,0.06); border-color: rgba(192,57,43,0.25); }
-.sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ac); flex-shrink: 0; margin-top: 4px; }
-.sched-event.exam .sev-dot { background: var(--red); }
-.sev-body { flex: 1; }
-.sev-title { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
-.sev-sub { font-size: 0.75rem; color: var(--ink3); font-family: 'DM Mono', monospace; margin-top: 2px; }
-.sched-empty-day { font-size: 0.82rem; color: var(--ink3); padding: 8px 0; font-style: italic; }
+/* Prog bar */
+.pbar-wrap{background:var(--s3);border-radius:20px;height:5px;overflow:hidden;margin:8px 0}
+.pbar-fill{height:100%;background:var(--ac);border-radius:20px;transition:width 0.4s}
 
+/* Day modal content blocks */
+.study-block{padding:10px 12px;background:var(--s2);border-radius:9px;margin-bottom:7px;border-left:3px solid var(--br)}
+.study-block.wfw{border-left-color:var(--warn)}
+.study-block.know{border-left-color:var(--ok)}
+.sb-title{font-size:0.87rem;font-weight:600;line-height:1.5;margin-bottom:3px}
+.sb-def{font-size:0.8rem;color:var(--ink3);font-style:italic;margin-top:4px;line-height:1.5}
 
-/* steps */
-.steps-row{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
-.step-pill{font-family:'DM Mono',monospace;font-size:0.68rem;padding:4px 11px;border-radius:20px;background:var(--s2);border:1px solid var(--br);color:var(--ink3);transition:all 0.2s}
-.step-pill.active{background:rgba(45,74,62,0.12);border-color:rgba(45,74,62,0.4);color:var(--ac)}
-.step-pill.done{background:rgba(39,105,79,0.1);border-color:rgba(39,105,79,0.3);color:var(--ok)}
-
-/* tabs inside view */
-.inner-tabs{display:flex;gap:2px;margin-bottom:22px;background:var(--s2);padding:4px;border-radius:9px;width:fit-content}
-.inner-tab{padding:7px 16px;border-radius:7px;border:none;background:transparent;color:var(--ink3);font-family:'Instrument Sans',sans-serif;font-size:0.83rem;font-weight:500;cursor:pointer;transition:all 0.15s}
-.inner-tab:hover{color:var(--ink)}
-.inner-tab.active{background:var(--bg);color:var(--ink);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
-
-.notif-bar{background:rgba(45,74,62,0.07);border:1px solid rgba(45,74,62,0.2);border-radius:9px;padding:9px 13px;font-size:0.8rem;color:var(--ac);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+/* Filter hint */
+.filter-hint{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:0.73rem;color:var(--ink3);margin-bottom:10px;line-height:1.7}
+.filter-hint span{color:var(--ac)}
 </style>
 </head>
 <body>
 
-<!-- ── SETUP (shown before app) ── -->
-<div id="setup-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">
-  <div class="setup-center">
-    <div class="setup-card">
-      <span class="setup-icon">📝</span>
-      <h2>NoteFlow</h2>
-      <p>Upload your notes. Get learning points, study plans, and quizzes — one place per test.</p>
-      <div class="info-box">
-        🆓 Free — uses <strong>Groq AI</strong> (vision + text).<br>
-        Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.<br>
-        PDFs work perfectly. For images, <strong>type the text</strong> if OCR misreads it.
-      </div>
-      <div class="field"><label>Groq API Key</label><input type="password" id="keyinput" placeholder="gsk_..."></div>
-      <button class="btn btn-p btn-full" onclick="saveKey()">Get started →</button>
-    </div>
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-card">
+    <span class="setup-icon">📝</span>
+    <h2>NoteFlow</h2>
+    <p>Upload your notes. Get clean learning points, a study plan, quizzes, and a chat — one place per test.</p>
+    <div class="info-box">🆓 Free — uses Groq AI. Get a key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card.</div>
+    <div class="field"><label>Groq API Key (starts with gsk_)</label><input type="password" id="keyinput" placeholder="gsk_..."></div>
+    <button class="btn bp bfull" onclick="saveKey()">Get started →</button>
   </div>
 </div>
 
-<!-- ── MAIN APP ── -->
-<div id="app" style="display:none" class="app-shell">
+<!-- APP -->
+<div id="app" style="display:none" class="shell">
 
-  <!-- SIDEBAR -->
   <aside class="sidebar">
-    <div class="sidebar-logo" style="display:flex;align-items:flex-start;justify-content:space-between">
-      <div>
-        <div class="logo-text">Note<span>Flow</span></div>
-        <div class="logo-sub">study companion</div>
-      </div>
-      <button onclick="toggleDark()" id="dark-btn" title="Toggle dark mode" style="background:none;border:1px solid var(--br);border-radius:7px;padding:5px 8px;cursor:pointer;font-size:0.9rem;color:var(--ink3);margin-top:2px">🌙</button>
+    <div class="sb-top">
+      <div class="logo">Note<em>Flow</em></div>
+      <button class="icon-btn" onclick="toggleDark()" id="dark-btn" title="Dark mode">🌙</button>
     </div>
-
-    <div class="sidebar-section">Overview</div>
-    <button class="nav-item active" id="nav-dashboard" onclick="goView('dashboard')"><span class="ni-icon">🏠</span><span class="ni-label">Dashboard</span></button>
-    <button class="nav-item" id="nav-schedule" onclick="goView('schedule');renderSchedule()"><span class="ni-icon">📆</span><span class="ni-label">Schedule</span></button>
-
-    <div class="sidebar-section" style="margin-top:8px">Tests</div>
-    <div id="test-nav-list"></div>
-    <button class="nav-item" onclick="openNewTest()" style="margin-top:4px;color:var(--ac)"><span class="ni-icon">＋</span><span class="ni-label">Add test</span></button>
-
-    <div class="sidebar-bottom">
-      <div class="api-status"><span class="api-dot" id="api-dot"></span><span id="api-status-txt">No API key</span></div>
+    <div class="sb-section">Overview</div>
+    <button class="nb on" id="nav-dash" onclick="goView('dash')"><span class="ni">🏠</span><span class="nl">Dashboard</span></button>
+    <button class="nb" id="nav-sched" onclick="goView('sched');buildSchedule()"><span class="ni">📆</span><span class="nl">Schedule</span></button>
+    <div class="sb-section" style="margin-top:6px">Tests</div>
+    <div id="test-nav"></div>
+    <button class="nb" onclick="openNewTestModal()" style="color:var(--ac)"><span class="ni">＋</span><span class="nl">Add test</span></button>
+    <div class="sb-bot">
+      <div class="api-pill"><span class="api-dot" id="api-dot"></span><span id="api-txt">No key</span></div>
     </div>
   </aside>
 
-  <!-- VIEWS -->
   <main class="main">
 
     <!-- DASHBOARD -->
-    <div class="view active" id="view-dashboard">
-      <div class="view-header">
-        <div class="view-title">Dashboard</div>
-        <div class="view-sub">Your upcoming tests at a glance.</div>
-      </div>
-      <div class="view-body">
-        <div id="dashboard-content">
-          <div class="empty-state"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> in the sidebar to get started.</p></div>
-        </div>
-      </div>
+    <div class="view on" id="view-dash">
+      <div class="vh"><div class="vh-title">Dashboard</div><div class="vh-sub">Your tests at a glance.</div></div>
+      <div class="vb" id="dash-body"><div class="empty"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> to get started.</p></div></div>
     </div>
 
     <!-- SCHEDULE -->
-    <div class="view" id="view-schedule">
-      <div class="view-header">
-        <div class="view-title">Schedule</div>
-        <div class="view-sub">All your study days and exams in one view.</div>
-      </div>
-      <div class="view-body">
-        <div id="schedule-content"><div class="empty-state"><span class="em">📆</span><p>Add tests and generate plans to see your schedule here.</p></div></div>
-      </div>
+    <div class="view" id="view-sched">
+      <div class="vh"><div class="vh-title">Schedule</div><div class="vh-sub">All study days and exams, 28 days ahead.</div></div>
+      <div class="vb" id="sched-body"><div class="empty"><span class="em">📆</span><p>Add tests and generate plans to see your schedule.</p></div></div>
     </div>
 
-    <!-- TEST VIEW (dynamic, one per test) -->
+    <!-- TEST VIEW -->
     <div class="view" id="view-test">
-      <div class="view-header" id="test-view-header">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div class="view-title" id="test-view-title">Test</div>
-            <div class="view-sub" id="test-view-sub"></div>
-          </div>
-          <button class="btn btn-danger btn-sm" onclick="deleteCurrentTest()">Delete test</button>
+      <div class="vh" id="test-vh">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div><div class="vh-title" id="test-title">—</div><div class="vh-sub" id="test-sub">—</div></div>
+          <button class="btn br2 bsm" onclick="delTest()">Delete</button>
         </div>
         <div style="padding-bottom:4px">
-          <div class="inner-tabs" style="margin-bottom:0">
-            <button class="inner-tab active" onclick="goTestTab('notes',this)">📄 Notes</button>
-            <button class="inner-tab" onclick="goTestTab('summary',this)">✦ Summary</button>
-            <button class="inner-tab" onclick="goTestTab('plan',this)">📅 Plan</button>
-            <button class="inner-tab" onclick="goTestTab('chat',this)">💬 Chat</button>
+          <div class="itabs">
+            <button class="it on" onclick="goTT('notes',this)">📄 Notes</button>
+            <button class="it" onclick="goTT('summary',this)">✦ Summary</button>
+            <button class="it" onclick="goTT('plan',this)">📅 Plan</button>
+            <button class="it" onclick="goTT('chat',this)">💬 Chat</button>
           </div>
         </div>
       </div>
-      <div class="view-body" style="padding-top:20px">
+      <div class="vb" style="padding-top:18px">
+
         <!-- NOTES TAB -->
-        <div id="tt-notes" class="test-tab active">
-          <!-- upload -->
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title"><span class="dot"></span> Files</div><button class="btn btn-ghost btn-sm" onclick="document.getElementById('finput').click()">+ Add files</button></div>
-            <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()" style="padding:28px">
+        <div id="tt-notes" class="tt on">
+          <div class="card" style="margin-bottom:12px">
+            <div class="ch"><div class="ct"><span class="dot"></span>Files</div><button class="btn bg bsm" onclick="document.getElementById('finput').click()">+ Add</button></div>
+            <div class="drop" id="dropzone" onclick="document.getElementById('finput').click()">
               <span style="font-size:2rem">📎</span>
               <h3>Drop PDFs or images</h3>
-              <p>Text is extracted from PDFs directly. Images use AI vision.</p>
-              <div class="drop-note">⚠️ If image text is misread, use the manual text area below to type/paste your notes instead.</div>
+              <p>PDFs extract perfectly. Images use AI vision (Groq).</p>
+              <div class="drop-warn">⚠️ Handwriting OCR isn't perfect — use the manual notes area below if needed.</div>
             </div>
             <input type="file" id="finput" style="display:none" multiple accept="image/*,.pdf">
-            <div class="file-list" id="file-list"></div>
-            <div class="actions-row">
-              <button class="btn btn-p btn-sm" id="extract-btn" onclick="runExtract()" disabled>Extract text</button>
+            <div class="flist" id="flist"></div>
+            <div class="actions">
+              <button class="btn bp bsm" id="extract-btn" onclick="runExtract()" disabled>Extract text</button>
             </div>
-            <div class="hint-text" id="extract-hint">Upload files first.</div>
+            <div class="hint" id="extract-hint">Upload files first.</div>
           </div>
 
-          <!-- manual text -->
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title"><span class="dot dot-o"></span> Manual notes</div></div>
-            <p style="font-size:0.83rem;color:var(--ink3);margin-bottom:10px">Type or paste notes here — use this if the file extraction didn't work, or to add extra context.</p>
-            <textarea class="notes-area" id="manual-notes" placeholder="Type your notes here…" oninput="saveManualNotes()"></textarea>
+          <div class="card" style="margin-bottom:12px">
+            <div class="ch"><div class="ct"><span class="dot dot-w"></span>Manual notes &amp; filters</div></div>
+            <p style="font-size:0.82rem;color:var(--ink3);margin-bottom:8px">Type extra notes, or filter which questions per file:</p>
+            <div class="filter-hint"><span>AB 1.14: 1,2,6,7,8</span><br><span>AB 1.15: all</span><br><span style="color:var(--ink3)">// filename fragment: question numbers or "all"</span></div>
+            <textarea id="manual-notes" rows="5" placeholder="Extra notes here…" oninput="saveManual()"></textarea>
           </div>
 
-          <!-- settings -->
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title"><span class="dot dot-g"></span> Settings</div></div>
-            <div class="row2">
+          <div class="card" style="margin-bottom:12px">
+            <div class="ch"><div class="ct"><span class="dot dot-o"></span>Settings</div></div>
+            <div class="r2">
               <div class="field"><label>Language</label>
                 <select id="lang-pick">
                   <option value="keep">Keep original language</option>
@@ -399,949 +368,925 @@ canvas#cvs{display:none}
                   <option value="nl">Dutch</option><option value="it">Italian</option>
                 </select>
               </div>
-              <div class="field"><label>Subject context (optional)</label><input type="text" id="ctx-input" placeholder="e.g. Chapter 3 – Cell division"></div>
+              <div class="field"><label>Context (optional)</label><input type="text" id="ctx-in" placeholder="e.g. Chapter 3 – DNA"></div>
             </div>
             <div class="field">
-              <label>Key definitions — one per line (click badge to toggle word-for-word vs just understand)</label>
-              <textarea id="defs-input" placeholder="e.g. Mitosis&#10;Photosynthesis&#10;ATP synthesis" style="min-height:72px" oninput="renderDefs()"></textarea>
+              <label>Key definitions — one per line (toggle how to learn each)</label>
+              <textarea id="defs-in" rows="3" placeholder="e.g. Mitosis&#10;Photosynthesis" oninput="renderDefs()"></textarea>
             </div>
             <div id="defs-list"></div>
           </div>
 
-          <button class="btn btn-p" id="summarise-btn" onclick="runSummarise()" disabled>⚡ Summarise with AI</button>
-          <div class="hint-text" id="summarise-hint">Extract text or add manual notes first.</div>
+          <button class="btn bp" id="sum-btn" onclick="runSummarise()" disabled>⚡ Summarise</button>
+          <div class="hint" id="sum-hint">Extract text or add manual notes first.</div>
         </div>
 
         <!-- SUMMARY TAB -->
-        <div id="tt-summary" class="test-tab" style="display:none">
-          <div id="summary-empty" class="empty-state"><span class="em">✦</span><p>Go to Notes tab and hit Summarise.</p></div>
-          <div id="summary-content" style="display:none"></div>
+        <div id="tt-summary" class="tt" style="display:none">
+          <div id="sum-empty" class="empty"><span class="em">✦</span><p>Go to Notes and hit Summarise.</p></div>
+          <div id="sum-content" style="display:none"></div>
         </div>
 
         <!-- PLAN TAB -->
-        <div id="tt-plan" class="test-tab" style="display:none">
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-hd"><div class="card-title"><span class="dot"></span> Plan settings</div></div>
-            <div id="plan-no-date-warn" style="display:none;background:rgba(192,57,43,0.07);border:1px solid rgba(192,57,43,0.2);border-radius:9px;padding:10px 13px;font-size:0.82rem;color:var(--red);margin-bottom:12px">
-              ⚠️ No exam date set for this test. <button class="btn btn-ghost btn-sm" onclick="openNewTestDateModal()" style="margin-left:8px">Set date</button>
-            </div>
-            <div id="plan-exam-info" style="margin-bottom:12px;font-size:0.85rem;color:var(--ink3)"></div>
-            <div class="row2">
+        <div id="tt-plan" class="tt" style="display:none">
+          <div class="card" style="margin-bottom:14px">
+            <div class="ch"><div class="ct"><span class="dot"></span>Plan settings</div></div>
+            <div id="plan-date-warn" style="display:none;background:var(--err-light);border:1px solid rgba(176,48,32,0.2);border-radius:8px;padding:9px 12px;font-size:0.8rem;color:var(--err);margin-bottom:12px">⚠️ No exam date set for this test. Set it when creating the test.</div>
+            <div id="plan-date-info" style="font-size:0.84rem;color:var(--ink3);margin-bottom:12px"></div>
+            <div class="r2">
               <div class="field"><label>Study time/day</label>
-                <select id="plan-time">
-                  <option value="30">30 min</option><option value="60" selected>1 hour</option>
-                  <option value="90">1.5 hours</option><option value="120">2 hours</option>
-                </select>
+                <select id="plan-time"><option value="30">30 min</option><option value="60" selected>1 hour</option><option value="90">1.5 h</option><option value="120">2 h</option></select>
               </div>
-              <div class="field"><label>Weak spots (optional)</label><input type="text" id="plan-weak" placeholder="e.g. confused about photosynthesis"></div>
+              <div class="field"><label>Weak spots (optional)</label><input type="text" id="plan-weak" placeholder="e.g. confused on X"></div>
             </div>
-            <button class="btn btn-p btn-sm" onclick="runPlan()">Generate plan</button>
+            <button class="btn bp bsm" onclick="runPlan()">Generate plan</button>
           </div>
-          <div id="plan-empty" class="empty-state" style="padding:24px 0"><span class="em">📅</span><p>Hit Generate plan above.</p></div>
+          <div id="plan-empty" class="empty" style="padding:20px 0"><span class="em">📅</span><p>Hit Generate plan above.</p></div>
           <div id="plan-content" style="display:none"></div>
         </div>
 
         <!-- CHAT TAB -->
-        <div id="tt-chat" class="test-tab" style="display:none">
-          <div class="chat-wrap" id="chat-wrap">
+        <div id="tt-chat" class="tt" style="display:none">
+          <div class="chat-wrap">
             <div class="chat-msgs" id="chat-msgs">
-              <div class="msg ai">Hi! Ask me anything about this subject. I'll answer based on your notes.</div>
+              <div class="msg a">Hi! Ask me anything about your notes for this subject.</div>
             </div>
-            <div class="chat-input-area">
-              <input type="text" id="chat-in" placeholder="Ask a question about your notes…" onkeydown="if(event.key==='Enter')sendChat()">
-              <button class="btn btn-p btn-sm" onclick="sendChat()">Send</button>
+            <div class="chat-in-row">
+              <input type="text" id="chat-in" placeholder="Ask a question…" onkeydown="if(event.key==='Enter')sendChat()">
+              <button class="btn bp bsm" onclick="sendChat()">Send</button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
-
   </main>
 </div>
 
-<!-- MODAL (day detail + quiz + new test) -->
+<!-- MODAL -->
 <div class="overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
-  <div class="modal" id="modal-box">
-    <button class="modal-close" onclick="closeModal()">✕ Close</button>
-    <div id="modal-content"></div>
-  </div>
+  <div class="modal"><button class="modal-x" onclick="closeModal()">✕</button><div id="modal-body"></div></div>
 </div>
 
 <div id="toast"></div>
-<canvas id="cvs" style="display:none"></canvas>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 // ── STATE ──────────────────────────────────────────────────────────────────────
-let apiKey = '';
-// tests: [{id, subject, examDate, notes:{files[], extracted{}, manualText, lang, ctx, defModes{}}, summary:{clean,points,topics}, plan:{days[]}, doneDays:Set, chatHistory:[]}]
-let tests = [];
-let currentTestId = null;
-let defModes = {}; // for current test being edited
-let uploadedFiles = []; // {name, type, file, dataUrl?, status, text?}
-let quizData = null, quizIdx = 0;
-let notifGranted = false, notifTimers = [];
+let KEY = '';
+let tests = [];      // full test objects
+let tid = null;      // current test id
+let defModes = {};   // term -> 'wfw'|'know'
+let upFiles = [];    // {name,type,file,dataUrl,status,text}
+let quizQ = null, quizIdx = 0;
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
 addEventListener('DOMContentLoaded', () => {
-  // Apply saved theme
-  const savedTheme = localStorage.getItem('nf_theme');
-  if (savedTheme) {
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    if (savedTheme === 'dark') { const btn = document.getElementById('dark-btn'); if(btn) btn.textContent = '☀️'; }
-  }
   const k = sessionStorage.getItem('nf_k');
-  const savedTests = localStorage.getItem('nf_tests');
-  if (savedTests) try { tests = JSON.parse(savedTests); tests.forEach(t => { t.doneDays = new Set(t.doneDays||[]); }); } catch{}
-  if (k !== null) { apiKey = k; boot(); }
+  load();
+  if (k !== null) { KEY = k; boot(); }
   setupDrop();
-  document.getElementById('plan-exam-date').min = new Date().toISOString().split('T')[0];
-  if ('Notification' in window && Notification.permission === 'granted') notifGranted = true;
+  const saved = localStorage.getItem('nf_theme');
+  if (saved === 'dark') { document.documentElement.setAttribute('data-dark',''); document.getElementById('dark-btn').textContent = '☀️'; }
 });
 
 function saveKey() {
   const k = document.getElementById('keyinput').value.trim();
   if (!k.startsWith('gsk_')) { toast('⚠️ Groq keys start with gsk_'); return; }
-  apiKey = k;
-  sessionStorage.setItem('nf_k', k);
-  boot();
+  KEY = k; sessionStorage.setItem('nf_k', k); boot();
 }
 
 function boot() {
-  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('setup').style.display = 'none';
   document.getElementById('app').style.display = 'grid';
-  updateApiStatus();
-  renderSidebar();
-  renderDashboard();
+  updateApiStatus(); renderSidebar(); renderDash();
+}
+
+function save() {
+  localStorage.setItem('nf_tests', JSON.stringify(tests.map(t => ({...t, doneDays: [...(t.doneDays||[])]}))));
+}
+
+function load() {
+  try {
+    const d = localStorage.getItem('nf_tests');
+    if (d) { tests = JSON.parse(d); tests.forEach(t => { t.doneDays = new Set(t.doneDays||[]); }); }
+  } catch {}
 }
 
 function toggleDark() {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const newTheme = isDark ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', newTheme);
-  document.getElementById('dark-btn').textContent = newTheme === 'dark' ? '☀️' : '🌙';
-  localStorage.setItem('nf_theme', newTheme);
+  const on = document.documentElement.hasAttribute('data-dark');
+  if (on) { document.documentElement.removeAttribute('data-dark'); document.getElementById('dark-btn').textContent = '🌙'; localStorage.setItem('nf_theme','light'); }
+  else { document.documentElement.setAttribute('data-dark',''); document.getElementById('dark-btn').textContent = '☀️'; localStorage.setItem('nf_theme','dark'); }
 }
 
 function updateApiStatus() {
-  const dot = document.getElementById('api-dot');
-  const txt = document.getElementById('api-status-txt');
-  if (apiKey) { dot.className = 'api-dot ok'; txt.textContent = 'Groq connected'; }
-  else { dot.className = 'api-dot'; txt.textContent = 'No API key'; }
+  const dot = document.getElementById('api-dot'), txt = document.getElementById('api-txt');
+  if (KEY) { dot.className = 'api-dot ok'; txt.textContent = 'Groq connected'; }
+  else { dot.className = 'api-dot'; txt.textContent = 'No key'; }
 }
 
-function saveTests() {
-  const toSave = tests.map(t => ({...t, doneDays: [...(t.doneDays||[])]}));
-  localStorage.setItem('nf_tests', JSON.stringify(toSave));
-}
-
-// ── VIEWS ────────────────────────────────────────────────────────────────────
+// ── NAVIGATION ─────────────────────────────────────────────────────────────────
 function goView(name) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('view-' + name)?.classList.add('active');
-  document.getElementById('nav-' + name)?.classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  document.getElementById('view-'+name)?.classList.add('on');
+  document.getElementById('nav-'+name)?.classList.add('on');
 }
 
-function goTestView(testId) {
-  currentTestId = testId;
-  const t = getTest();
-  if (!t) return;
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('view-test').classList.add('active');
-  document.getElementById('nav-test-' + testId)?.classList.add('active');
+function goTT(name, el) {
+  document.querySelectorAll('.tt').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.it').forEach(t => t.classList.remove('on'));
+  document.getElementById('tt-'+name).style.display = 'block';
+  el?.classList.add('on');
+}
 
-  // populate header
-  document.getElementById('test-view-title').textContent = t.subject;
-  const days = daysUntil(t.examDate);
-  document.getElementById('test-view-sub').textContent = t.examDate
-    ? `Exam: ${fmtDate(t.examDate)} · ${days > 0 ? days + ' days left' : days === 0 ? 'Today!' : 'Exam passed'}`
+function goTest(testId) {
+  tid = testId;
+  const t = getT(); if (!t) return;
+
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('on'));
+  document.getElementById('view-test').classList.add('on');
+  document.getElementById('nav-t-'+testId)?.classList.add('on');
+
+  document.getElementById('test-title').textContent = t.subject;
+  const dl = daysUntil(t.examDate);
+  document.getElementById('test-sub').textContent = t.examDate
+    ? 'Exam: ' + fmtDate(t.examDate) + ' · ' + (dl > 0 ? dl + ' days left' : dl === 0 ? 'Today!' : 'Exam passed')
     : 'No exam date set';
 
-  // restore state
-  uploadedFiles = t.notes?.files || [];
-  defModes = t.notes?.defModes || {};
-  document.getElementById('manual-notes').value = t.notes?.manualText || '';
-  document.getElementById('defs-input').value = Object.keys(defModes).join('\n');
-  document.getElementById('lang-pick').value = t.notes?.lang || 'keep';
-  document.getElementById('ctx-input').value = t.notes?.ctx || '';
-  // Update plan tab info
-  const planInfo = document.getElementById('plan-exam-info');
-  const planWarn = document.getElementById('plan-no-date-warn');
-  if (planInfo && planWarn) {
-    if (t.examDate) {
-      const dLeft = daysUntil(t.examDate);
-      planInfo.textContent = 'Exam: ' + fmtDate(t.examDate) + ' · ' + (dLeft > 0 ? dLeft + ' days left' : 'Today!');
-      planWarn.style.display = 'none';
-      planInfo.style.display = 'block';
-    } else {
-      planInfo.style.display = 'none';
-      planWarn.style.display = 'block';
-    }
-  }
+  // Restore file list & manual notes
+  upFiles = (t.files||[]).map(f => ({...f, file: null}));
+  defModes = t.defModes || {};
+  document.getElementById('manual-notes').value = t.manual || '';
+  document.getElementById('defs-in').value = Object.keys(defModes).join('\n');
+  document.getElementById('lang-pick').value = t.lang || 'keep';
+  document.getElementById('ctx-in').value = t.ctx || '';
 
-  renderFileList();
-  renderDefs();
-  updateExtractBtn();
-  updateSummariseBtn();
+  renderFileList(); renderDefs(); updateExtBtn(); updateSumBtn();
 
-  // restore summary
-  if (t.summary) {
-    document.getElementById('summary-empty').style.display = 'none';
-    document.getElementById('summary-content').style.display = 'block';
-    renderSummaryHTML(t.summary);
-  } else {
-    document.getElementById('summary-empty').style.display = 'block';
-    document.getElementById('summary-content').style.display = 'none';
-  }
+  // Plan tab date info
+  const pi = document.getElementById('plan-date-info'), pw = document.getElementById('plan-date-warn');
+  if (t.examDate) { pi.textContent = 'Exam: '+fmtDate(t.examDate)+(dl>0?' · '+dl+' days left':''); pi.style.display='block'; pw.style.display='none'; }
+  else { pi.style.display='none'; pw.style.display='block'; }
 
-  // restore plan
-  if (t.plan?.days?.length) {
-    document.getElementById('plan-empty').style.display = 'none';
-    document.getElementById('plan-content').style.display = 'block';
-    renderPlanHTML(t.plan, t);
-  } else {
-    document.getElementById('plan-empty').style.display = 'block';
-    document.getElementById('plan-content').style.display = 'none';
-  }
+  // Summary
+  if (t.summary) { document.getElementById('sum-empty').style.display='none'; document.getElementById('sum-content').style.display='block'; renderSumHTML(t.summary); }
+  else { document.getElementById('sum-empty').style.display='block'; document.getElementById('sum-content').style.display='none'; }
 
-  // restore chat
-  const msgs = document.getElementById('chat-msgs');
-  msgs.innerHTML = '';
-  (t.chatHistory || []).forEach(m => appendMsg(m.content, m.role === 'user' ? 'user' : 'ai'));
-  if (!t.chatHistory?.length) appendMsg('Hi! Ask me anything about this subject. I\'ll answer based on your notes.', 'ai');
+  // Plan
+  if (t.plan?.days?.length) { document.getElementById('plan-empty').style.display='none'; document.getElementById('plan-content').style.display='block'; renderPlanHTML(t.plan, t); }
+  else { document.getElementById('plan-empty').style.display='block'; document.getElementById('plan-content').style.display='none'; }
 
-  // show notes tab by default
-  goTestTab('notes', document.querySelector('.inner-tab'));
+  // Chat
+  const cm = document.getElementById('chat-msgs'); cm.innerHTML='';
+  (t.chat||[]).forEach(m => addMsg(m.content, m.role==='user'?'u':'a'));
+  if (!t.chat?.length) addMsg('Hi! Ask me anything about your notes for this subject.','a');
+
+  goTT('notes', document.querySelector('.it'));
 }
 
-function goTestTab(name, el) {
-  document.querySelectorAll('.test-tab').forEach(t => t.style.display = 'none');
-  document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tt-' + name).style.display = 'block';
-  if (el) el.classList.add('active');
-}
-
-// ── SIDEBAR ────────────────────────────────────────────────────────────────────
+// ── SIDEBAR & DASHBOARD ────────────────────────────────────────────────────────
 function renderSidebar() {
-  const list = document.getElementById('test-nav-list');
-  list.innerHTML = '';
+  const c = document.getElementById('test-nav'); c.innerHTML = '';
   tests.forEach(t => {
-    const days = daysUntil(t.examDate);
-    const badge = t.examDate ? (days <= 3 ? `${days}d ⚠️` : `${days}d`) : '';
-    const btn = document.createElement('button');
-    btn.className = 'nav-item';
-    btn.id = 'nav-test-' + t.id;
-    btn.innerHTML = `<span class="ni-icon">📖</span><span class="ni-label">${esc(t.subject)}</span>${badge ? `<span class="ni-badge">${badge}</span>` : ''}`;
-    btn.onclick = () => goTestView(t.id);
-    list.appendChild(btn);
+    const dl = daysUntil(t.examDate);
+    const badge = t.examDate ? (dl <= 3 ? dl+'d ⚠️' : dl+'d') : '';
+    const b = document.createElement('button');
+    b.className = 'nb'; b.id = 'nav-t-'+t.id;
+    b.innerHTML = `<span class="ni">📖</span><span class="nl">${esc(t.subject)}</span>${badge?`<span class="nd">${badge}</span>`:''}`;
+    b.onclick = () => goTest(t.id);
+    c.appendChild(b);
   });
 }
 
-function renderDashboard() {
-  const c = document.getElementById('dashboard-content');
-  if (!tests.length) {
-    c.innerHTML = '<div class="empty-state"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> in the sidebar.</p></div>';
-    return;
-  }
-  const sorted = [...tests].sort((a,b) => new Date(a.examDate) - new Date(b.examDate));
-  c.innerHTML = `<div class="tests-grid">${sorted.map(t => {
-    const days = daysUntil(t.examDate);
-    const pts = t.summary?.points?.length || 0;
-    const done = [...(t.doneDays||[])].length;
-    const total = t.plan?.days?.length || 0;
-    const pct = total ? Math.round(done/total*100) : 0;
-    return `<div class="test-card" onclick="goTestView('${t.id}')">
-      <div class="test-card-subject">${esc(t.subject)}</div>
-      <div class="test-card-date">${t.examDate ? fmtDate(t.examDate) : 'No date set'}</div>
-      <div class="test-card-stats">
-        ${days >= 0 ? `<span class="stat-chip ${days<=3?'urgent':'ok'}">${days === 0 ? 'Today!' : days + ' days'}</span>` : '<span class="stat-chip">Past</span>'}
-        ${pts ? `<span class="stat-chip">${pts} points</span>` : ''}
-        ${total ? `<span class="stat-chip">${done}/${total} days done</span>` : ''}
+function renderDash() {
+  const c = document.getElementById('dash-body');
+  if (!tests.length) { c.innerHTML = '<div class="empty"><span class="em">📚</span><p>No tests yet.<br>Click <strong>+ Add test</strong> to get started.</p></div>'; return; }
+  const sorted = [...tests].sort((a,b) => new Date(a.examDate)-new Date(b.examDate));
+  c.innerHTML = `<div class="tgrid">${sorted.map(t => {
+    const dl = daysUntil(t.examDate); const pts = t.summary?.points?.length||0;
+    const done = (t.doneDays?.size||[...t.doneDays||[]].length||0); const total = t.plan?.days?.length||0;
+    const pct = total ? Math.round((t.doneDays?.size||0)/total*100) : 0;
+    return `<div class="tcard" onclick="goTest('${t.id}')">
+      <div class="tc-sub">${esc(t.subject)}</div>
+      <div class="tc-date">${t.examDate?fmtDate(t.examDate):'No date set'}</div>
+      <div class="tc-chips">
+        ${dl!=null?(dl<=3?`<span class="chip urg">${dl===0?'Today!':dl+' days'}</span>`:`<span class="chip good">${dl} days</span>`):''}
+        ${pts?`<span class="chip">${pts} points</span>`:''}
+        ${total?`<span class="chip">${t.doneDays?.size||0}/${total} done</span>`:''}
       </div>
-      ${total ? `<div class="test-card-bar"><div class="test-card-bar-fill" style="width:${pct}%"></div></div>` : ''}
+      ${total?`<div class="prog"><div class="prog-fill" style="width:${pct}%"></div></div>`:''}
     </div>`;
   }).join('')}</div>`;
 }
 
-function renderSchedule() {
-  const c = document.getElementById('schedule-content');
-  // collect all events
+function buildSchedule() {
+  const c = document.getElementById('sched-body');
   const events = [];
   const today = new Date(); today.setHours(0,0,0,0);
-  const todayStr = localDateStr(today);
+  const todayStr = ldStr(today);
 
   tests.forEach(t => {
-    if (t.examDate) events.push({date: t.examDate, type: 'exam', label: t.subject + ' exam', sub: t.subject});
-    (t.plan?.days||[]).forEach((d,i) => {
-      if (d.date) events.push({date: d.date, type: 'study', label: d.theme, sub: t.subject, dayIdx: i, testId: t.id});
-    });
+    if (t.examDate) events.push({date:t.examDate, type:'exam', label:t.subject+' — Exam', sub:t.subject});
+    (t.plan?.days||[]).forEach(d => { if (d.date) events.push({date:d.date, type:'study', label:d.theme, sub:t.subject}); });
   });
 
-  if (!events.length) { c.innerHTML = '<div class="empty-state"><span class="em">📆</span><p>Add tests and generate plans to see your schedule.</p></div>'; return; }
+  if (!events.length) { c.innerHTML='<div class="empty"><span class="em">📆</span><p>Add tests and generate plans.</p></div>'; return; }
 
-  // build window: from earliest event or today, 28 days
-  const allDates = events.map(e=>e.date).filter(Boolean).sort();
-  const windowStart = new Date(today);
   const days = [];
-  for (let i = 0; i < 28; i++) {
-    const d = new Date(windowStart); d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-
-  // Group events by date
+  for (let i=0; i<28; i++) { const d=new Date(today); d.setDate(d.getDate()+i); days.push(d); }
   const byDate = {};
   events.forEach(e => { if(!byDate[e.date])byDate[e.date]=[]; byDate[e.date].push(e); });
 
-  // Only show days with events + today
-  const activeDays = days.filter(d => { const ds=localDateStr(d); return ds===todayStr || byDate[ds]?.length; });
+  const activeDays = days.filter(d => { const ds=ldStr(d); return ds===todayStr || byDate[ds]?.length; });
+  if (!activeDays.length) { c.innerHTML='<div class="empty"><span class="em">📆</span><p>No events in the next 28 days.</p></div>'; return; }
 
-  c.innerHTML = `<div class="sched-list">${activeDays.map(d => {
-    const ds = localDateStr(d);
-    const isToday = ds === todayStr;
-    const dayEvents = byDate[ds] || [];
-    return `<div class="sched-row">
-      <div class="sched-date-col">
-        <div class="sched-dow">${d.toLocaleDateString('en-GB',{weekday:'short'})}</div>
-        <div class="sched-dom ${isToday?'today-dom':''} ${dayEvents.some(e=>e.type==='exam')?'exam-dom':''} ">${d.getDate()}</div>
-        <div class="sched-mon">${d.toLocaleDateString('en-GB',{month:'short'})}</div>
+  c.innerHTML = `<div class="sched">${activeDays.map(d => {
+    const ds = ldStr(d), isToday = ds===todayStr;
+    const evs = byDate[ds]||[];
+    return `<div class="srow">
+      <div class="sdate">
+        <div class="sdow">${d.toLocaleDateString('en-GB',{weekday:'short'})}</div>
+        <div class="sdom ${isToday?'today':''} ${evs.some(e=>e.type==='exam')?'exam':''}">${d.getDate()}</div>
+        <div class="smon">${d.toLocaleDateString('en-GB',{month:'short'})}</div>
       </div>
-      <div class="sched-events">${dayEvents.length?dayEvents.map(e=>`<div class="sched-event ${e.type}">
-          <div class="sev-dot"></div>
-          <div class="sev-body">
-            <div class="sev-title">${esc(e.label)}</div>
-            <div class="sev-sub">${esc(e.sub)}${e.type==='exam'?' — Exam':''}</div>
-          </div>
-        </div>`).join(''):`<div class="sched-empty-day">No events</div>`}
+      <div class="sevents">${evs.length ? evs.map(e=>`<div class="sev ${e.type}">
+        <div class="sev-dot"></div>
+        <div><div class="sev-title">${esc(e.label)}</div><div class="sev-meta">${esc(e.sub)}</div></div>
+      </div>`).join('') : `<div class="sev"><div class="sev-dot"></div><div><div class="sev-title" style="font-weight:400;color:var(--ink3)">No events</div></div></div>`}
       </div>
     </div>`;
   }).join('')}</div>`;
 }
 
 // ── NEW TEST MODAL ─────────────────────────────────────────────────────────────
-function openNewTest() {
-  openModal(`
-    <h2>New test</h2>
-    <div class="modal-sub">Add a subject and exam date.</div>
-    <div class="field"><label>Subject name</label><input type="text" id="new-subject" placeholder="e.g. Biology, Histoire, Mathe…" autofocus></div>
-    <div class="field"><label>Exam date (optional)</label><input type="date" id="new-date" min="${new Date().toISOString().split('T')[0]}"></div>
-    <div class="actions-row">
-      <button class="btn btn-p" onclick="createTest()">Create →</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    </div>`);
+function openNewTestModal() {
+  openModal(`<div class="mh2">New test</div><div class="msub">Add a subject and exam date.</div>
+    <div class="field"><label>Subject</label><input type="text" id="ns-sub" placeholder="e.g. Geschichte, Biology…" autofocus></div>
+    <div class="field"><label>Exam date (optional)</label><input type="date" id="ns-date" min="${ldStr(new Date())}"></div>
+    <div class="actions"><button class="btn bp" onclick="createTest()">Create →</button><button class="btn bg" onclick="closeModal()">Cancel</button></div>`);
 }
 
 function createTest() {
-  const sub = document.getElementById('new-subject').value.trim();
-  if (!sub) { toast('⚠️ Enter a subject name'); return; }
-  const exam = document.getElementById('new-date').value;
-  const t = {
-    id: Date.now().toString(),
-    subject: sub, examDate: exam,
-    notes: {files:[], extracted:{}, manualText:'', lang:'keep', ctx:'', defModes:{}},
-    summary: null, plan: null,
-    doneDays: new Set(), chatHistory: []
-  };
-  tests.push(t);
-  saveTests();
-  closeModal();
-  renderSidebar();
-  renderDashboard();
-  goTestView(t.id);
-  toast('✓ Test created');
+  const sub = document.getElementById('ns-sub')?.value.trim();
+  if (!sub) { toast('⚠️ Enter a subject'); return; }
+  const exam = document.getElementById('ns-date')?.value;
+  const t = { id: Date.now().toString(), subject: sub, examDate: exam||'',
+    files:[], manual:'', lang:'keep', ctx:'', defModes:{}, fileChunks:[],
+    summary:null, plan:null, doneDays:new Set(), chat:[] };
+  tests.push(t); save(); closeModal(); renderSidebar(); renderDash(); goTest(t.id);
+  toast('✓ Created');
 }
 
-function deleteCurrentTest() {
-  const t = getTest();
-  if (!t) return;
-  if (!confirm(`Delete "${t.subject}"? This cannot be undone.`)) return;
-  tests = tests.filter(x => x.id !== currentTestId);
-  saveTests();
-  currentTestId = null;
-  uploadedFiles = [];
-  renderSidebar();
-  renderDashboard();
-  goView('dashboard');
-  toast('Deleted');
+function delTest() {
+  const t = getT(); if (!t) return;
+  if (!confirm(`Delete "${t.subject}"?`)) return;
+  tests = tests.filter(x => x.id !== tid); tid = null; upFiles = [];
+  save(); renderSidebar(); renderDash(); goView('dash'); toast('Deleted');
 }
 
-// ── FILES ─────────────────────────────────────────────────────────────────────
+// ── FILE HANDLING ──────────────────────────────────────────────────────────────
 function setupDrop() {
   const z = document.getElementById('dropzone');
   z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('over'); });
   z.addEventListener('dragleave', () => z.classList.remove('over'));
   z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('over'); handleFiles([...e.dataTransfer.files]); });
-  document.getElementById('finput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value = ''; });
+  document.getElementById('finput').addEventListener('change', e => { handleFiles([...e.target.files]); e.target.value=''; });
 }
 
 async function handleFiles(newf) {
   for (const f of newf) {
-    if (uploadedFiles.length >= 8) { toast('Max 8 files'); break; }
+    if (upFiles.length >= 8) { toast('Max 8 files'); break; }
     const isPDF = f.type === 'application/pdf' || f.name.endsWith('.pdf');
     const isImg = f.type.startsWith('image/');
     if (!isPDF && !isImg) { toast('Only images and PDFs'); continue; }
     const dataUrl = isImg ? await toDataUrl(f) : null;
-    uploadedFiles.push({ name: f.name, type: isPDF ? 'pdf' : 'image', file: f, dataUrl, status: 'pending', text: '' });
+    upFiles.push({ name:f.name, type:isPDF?'pdf':'image', file:f, dataUrl, status:'pending', text:'' });
   }
-  persistFiles();
-  renderFileList();
-  updateExtractBtn();
+  syncFiles(); renderFileList(); updateExtBtn();
 }
 
-const toDataUrl = f => new Promise(r => { const rd = new FileReader(); rd.onload = e => r(e.target.result); rd.readAsDataURL(f); });
+const toDataUrl = f => new Promise(r => { const rd=new FileReader(); rd.onload=e=>r(e.target.result); rd.readAsDataURL(f); });
+
+function syncFiles() {
+  const t = getT(); if (!t) return;
+  t.files = upFiles.map(f => ({name:f.name,type:f.type,status:f.status,text:f.text,dataUrl:f.dataUrl}));
+  save();
+}
 
 function renderFileList() {
-  const c = document.getElementById('file-list'); c.innerHTML = '';
-  uploadedFiles.forEach((f, i) => {
-    const d = document.createElement('div'); d.className = 'file-row'; d.id = 'fr' + i;
-    d.innerHTML = `<span class="file-icon">${f.type==='pdf'?'📄':'🖼️'}</span>
-      <span class="file-name">${esc(f.name)}</span>
-      <span class="file-status ${f.status==='done'?'ok':f.status==='error'?'err':f.status==='running'?'run':''}" id="fst${i}">${f.status==='done'?'✓ done':f.status==='error'?'error':f.status==='running'?'reading…':'waiting'}</span>
-      <button class="file-rm" onclick="rmFile(${i})">✕</button>
-      <div class="file-progress" id="fp${i}"><div class="file-pbar" id="fpb${i}" style="width:0%"></div></div>`;
+  const c = document.getElementById('flist'); c.innerHTML='';
+  upFiles.forEach((f,i) => {
+    const d = document.createElement('div'); d.className='frow';
+    d.innerHTML = `<span class="ficon">${f.type==='pdf'?'📄':'🖼️'}</span>
+      <span class="fname">${esc(f.name)}</span>
+      <span class="fst ${f.status==='done'?'ok':f.status==='error'?'err':f.status==='running'?'run':''}" id="fs${i}">${{done:'✓ done',error:'error',running:'reading…',pending:'waiting'}[f.status]||'waiting'}</span>
+      <div class="fpbar-wrap" id="fpw${i}" style="${f.status!=='running'?'display:none':''}"><div class="fpbar" id="fpb${i}" style="width:${f.status==='done'?'100':0}%"></div></div>
+      <button class="frm" onclick="rmFile(${i})">✕</button>`;
     c.appendChild(d);
   });
 }
 
-function rmFile(i) {
-  uploadedFiles.splice(i, 1);
-  persistFiles();
-  renderFileList();
-  updateExtractBtn();
+function rmFile(i) { upFiles.splice(i,1); syncFiles(); renderFileList(); updateExtBtn(); }
+
+function updateExtBtn() {
+  const btn = document.getElementById('extract-btn'), h = document.getElementById('extract-hint');
+  const pending = upFiles.filter(f=>f.status!=='done').length;
+  btn.disabled = upFiles.length===0;
+  h.textContent = upFiles.length===0 ? 'Upload files first.' : pending===0 ? 'All files extracted ✓' : pending+' file(s) pending extraction.';
 }
 
-function persistFiles() {
-  const t = getTest(); if (!t) return;
-  // store only metadata, not File objects (can't serialize)
-  t.notes.files = uploadedFiles.map(f => ({name:f.name,type:f.type,status:f.status,text:f.text,dataUrl:f.dataUrl}));
-  saveTests();
+function updateSumBtn() {
+  const t = getT();
+  const hasText = upFiles.some(f=>f.text?.trim()) || t?.manual?.trim();
+  document.getElementById('sum-btn').disabled = !hasText || !KEY;
+  document.getElementById('sum-hint').textContent = !KEY ? 'Need a Groq key.' : !hasText ? 'Extract text or add manual notes first.' : 'Ready!';
 }
 
-function updateExtractBtn() {
-  const btn = document.getElementById('extract-btn');
-  const hint = document.getElementById('extract-hint');
-  const pending = uploadedFiles.filter(f => f.status !== 'done').length;
-  btn.disabled = uploadedFiles.length === 0;
-  hint.textContent = uploadedFiles.length === 0 ? 'Upload files first.' : pending === 0 ? 'All files extracted ✓' : `${pending} file(s) not yet extracted.`;
-}
-
-function updateSummariseBtn() {
-  const t = getTest();
-  const hasText = uploadedFiles.some(f => f.text?.trim()) || (t?.notes?.manualText?.trim());
-  document.getElementById('summarise-btn').disabled = !hasText || !apiKey;
-  document.getElementById('summarise-hint').textContent = !apiKey ? 'Need a Groq key.' : !hasText ? 'Extract text or add manual notes first.' : 'Ready to summarise!';
-}
-
-// ── PDF EXTRACT ───────────────────────────────────────────────────────────────
+// ── EXTRACT ────────────────────────────────────────────────────────────────────
 async function extractPDF(file) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data:buf}).promise;
   let text = '';
-  for (let p = 1; p <= pdf.numPages; p++) {
+  for (let p=1; p<=pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
-    text += tc.items.map(i => i.str).join(' ') + '\n';
+    text += tc.items.map(i=>i.str).join(' ') + '\n';
   }
   return text.trim();
 }
 
-// ── VISION OCR via Groq ───────────────────────────────────────────────────────
-async function extractImageVision(dataUrl) {
-  const base64 = dataUrl.split(',')[1];
-  const mimeMatch = dataUrl.match(/data:([^;]+);/);
-  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
+async function extractVision(dataUrl) {
+  const b64 = dataUrl.split(',')[1];
+  const mime = (dataUrl.match(/data:([^;]+);/)||[])[1]||'image/jpeg';
   const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+KEY},
     body: JSON.stringify({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } },
-          { type: 'text', text: 'Transcribe ALL text visible in this image exactly as written. Include every word, formula, and symbol. Output only the transcribed text, nothing else.' }
-        ]
-      }]
+      model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:2000,
+      messages:[{role:'user',content:[
+        {type:'image_url',image_url:{url:`data:${mime};base64,${b64}`}},
+        {type:'text',text:'Transcribe ALL visible text exactly as written. Include every word, number, formula, symbol. Output only the transcribed text.'}
+      ]}]
     })
   });
-  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message||'Vision error'); }
+  if (!r.ok) { const e=await r.json().catch(()=>({})); throw new Error(e?.error?.message||'Vision error'); }
   return (await r.json()).choices[0].message.content;
 }
 
 async function runExtract() {
   const btn = document.getElementById('extract-btn');
-  btn.disabled = true; btn.textContent = 'Extracting…';
-
-  for (let i = 0; i < uploadedFiles.length; i++) {
-    const f = uploadedFiles[i];
-    if (f.status === 'done') continue;
-    f.status = 'running';
-    document.getElementById(`fst${i}`).textContent = 'reading…';
-    document.getElementById(`fst${i}`).className = 'file-status run';
-    const fp = document.getElementById('fp'+i); if(fp) fp.style.display='block';
-
+  btn.disabled=true; btn.textContent='Extracting…';
+  for (let i=0; i<upFiles.length; i++) {
+    const f = upFiles[i]; if (f.status==='done') continue;
+    f.status='running';
+    document.getElementById('fs'+i).textContent='reading…'; document.getElementById('fs'+i).className='fst run';
+    const pw = document.getElementById('fpw'+i); if(pw) pw.style.display='block';
+    const pb = document.getElementById('fpb'+i); if(pb) pb.style.width='30%';
     try {
-      let text = '';
-      if (f.type === 'pdf') {
-        text = await extractPDF(f.file);
-      } else {
-        if (!apiKey) throw new Error('Need Groq key for image extraction');
-        text = await extractImageVision(f.dataUrl);
-      }
-      f.text = text;
-      f.status = 'done';
-      document.getElementById(`fst${i}`).textContent = '✓ done';
-      document.getElementById(`fst${i}`).className = 'file-status ok';
-      if(fp) fp.style.display='none';
+      f.text = f.type==='pdf' ? await extractPDF(f.file) : await extractVision(f.dataUrl);
+      f.status='done';
+      if(pb) pb.style.width='100%';
+      document.getElementById('fs'+i).textContent='✓ done'; document.getElementById('fs'+i).className='fst ok';
+      if(pw) pw.style.display='none';
     } catch(err) {
-      f.status = 'error';
-      document.getElementById(`fst${i}`).textContent = 'error';
-      document.getElementById(`fst${i}`).className = 'file-status err';
+      f.status='error';
+      document.getElementById('fs'+i).textContent='error'; document.getElementById('fs'+i).className='fst err';
       toast('⚠️ '+f.name+': '+err.message);
     }
   }
-
-  persistFiles();
-  btn.textContent = 'Extract text'; btn.disabled = false;
-  updateExtractBtn(); updateSummariseBtn();
+  syncFiles(); btn.textContent='Extract text'; btn.disabled=false; updateExtBtn(); updateSumBtn();
   toast('✓ Extraction done');
 }
 
-// ── MANUAL NOTES ──────────────────────────────────────────────────────────────
-function saveManualNotes() {
-  const t = getTest(); if (!t) return;
-  t.notes.manualText = document.getElementById('manual-notes').value;
-  saveTests();
-  updateSummariseBtn();
+// ── MANUAL / DEFS ──────────────────────────────────────────────────────────────
+function saveManual() {
+  const t = getT(); if (!t) return; t.manual = document.getElementById('manual-notes').value; save(); updateSumBtn();
 }
 
-// ── DEFINITIONS ───────────────────────────────────────────────────────────────
+// Parse "AB 1.14: 1,2,6" or "AB 1.14: all" lines
+function parseFilters(text) {
+  const f = {};
+  text.split('\n').forEach(line => {
+    const m = line.match(/^(.+?):\s*(all|\d[\d,\s]*)$/i);
+    if (m) { const k=m[1].trim().toLowerCase(), v=m[2].trim().toLowerCase(); f[k] = v==='all'?'all':v.split(',').map(n=>parseInt(n.trim())).filter(n=>!isNaN(n)); }
+  });
+  return f;
+}
+
+// Extract only the numbered sections matching given numbers
+function applyFilter(text, nums) {
+  if (nums==='all'||!nums?.length) return text;
+  const sections=[], lines=text.split('\n'); let cur=null;
+  lines.forEach(line => {
+    const m=line.match(/^(\d+)[.):\s]/);
+    if (m) { if(cur) sections.push(cur); cur={n:parseInt(m[1]),lines:[line]}; }
+    else if (cur) cur.lines.push(line);
+  });
+  if (cur) sections.push(cur);
+  if (!sections.length) return text;
+  return sections.filter(s=>nums.includes(s.n)).map(s=>s.lines.join('\n')).join('\n\n');
+}
+
 function renderDefs() {
-  const lines = document.getElementById('defs-input').value.split('\n').map(l=>l.trim()).filter(Boolean);
-  lines.forEach(l => { if (!defModes[l]) defModes[l] = 'wfw'; });
-  const t = getTest(); if(t) { t.notes.defModes = {...defModes}; saveTests(); }
+  const lines = document.getElementById('defs-in').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  lines.forEach(l => { if (!defModes[l]) defModes[l]='wfw'; });
+  const t = getT(); if(t) { t.defModes={...defModes}; save(); }
   const c = document.getElementById('defs-list');
   if (!lines.length) { c.innerHTML=''; return; }
-  c.innerHTML = `<div style="background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:12px;margin-top:8px">`+
+  c.innerHTML = `<div style="background:var(--bg);border:1px solid var(--br);border-radius:9px;padding:11px;margin-top:8px">`+
     lines.map(l=>`<div class="def-item">
       <span class="def-term">${esc(l)}</span>
-      <button class="def-toggle ${defModes[l]==='wfw'?'wfw':'know'}" onclick="toggleDef('${esc(l)}')">${defModes[l]==='wfw'?'Word-for-word':'Just understand'}</button>
+      <button class="def-tog ${defModes[l]==='wfw'?'wfw':'know'}" onclick="toggleDef('${esc(l)}')">${defModes[l]==='wfw'?'★ Word-for-word':'◎ Just understand'}</button>
     </div>`).join('')+'</div>';
 }
 
-function toggleDef(term) {
-  defModes[term] = defModes[term]==='wfw' ? 'know' : 'wfw';
-  renderDefs();
+function toggleDef(term) { defModes[term] = defModes[term]==='wfw'?'know':'wfw'; renderDefs(); }
+
+// ── LANG HELPER ───────────────────────────────────────────────────────────────
+function getLang() {
+  const t = getT(); const lang = t?.lang||'keep';
+  const map = {en:'English',fr:'French',de:'German',es:'Spanish',nl:'Dutch',it:'Italian'};
+  if (lang==='keep') return 'IMPORTANT: Detect the language of the notes and write your ENTIRE response in that SAME language. Do NOT use English unless the notes are in English.';
+  return `IMPORTANT: Write your ENTIRE response in ${map[lang]||'English'}. Do not mix languages.`;
+}
+
+// ── JSON PARSE ─────────────────────────────────────────────────────────────────
+function parseJ(raw) {
+  let s = raw.replace(/[`]{3}json|[`]{3}/gi,'').trim();
+  const st = s.search(/[\[{]/); if (st>0) s=s.slice(st);
+  let depth=0,end=-1,open=s[0],close=open==='{'?'}':']';
+  for(let i=0;i<s.length;i++){if(s[i]===open)depth++;else if(s[i]===close){depth--;if(depth===0){end=i;break;}}}
+  if(end!==-1) s=s.slice(0,end+1);
+  return JSON.parse(s);
+}
+
+// ── GROQ TEXT ─────────────────────────────────────────────────────────────────
+async function groq(prompt, model='llama-3.3-70b-versatile') {
+  const r = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+KEY},
+    body:JSON.stringify({model, max_tokens:4000, temperature:0.15, messages:[{role:'user',content:prompt}]})
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||'Groq '+r.status);}
+  return (await r.json()).choices[0].message.content;
 }
 
 // ── SUMMARISE ─────────────────────────────────────────────────────────────────
 async function runSummarise() {
-  const t = getTest(); if (!t || !apiKey) return;
-  const lang = document.getElementById('lang-pick').value;
-  const ctx = document.getElementById('ctx-input').value.trim();
-  t.notes.lang = lang; t.notes.ctx = ctx;
+  const t = getT(); if (!t||!KEY) return;
+  t.lang = document.getElementById('lang-pick').value;
+  t.ctx = document.getElementById('ctx-in').value.trim();
+  t.defModes = {...defModes};
 
-  const fileTexts = uploadedFiles.filter(f=>f.text?.trim()).map(f=>`[${f.name}]\n${f.text}`).join('\n\n');
-  const manualText = document.getElementById('manual-notes').value.trim();
-  const raw = [fileTexts, manualText].filter(Boolean).join('\n\n');
-  if (!raw.trim()) { toast('No text to summarise'); return; }
+  const manRaw = document.getElementById('manual-notes').value.trim();
+  const filters = parseFilters(manRaw);
+  const extraNotes = manRaw.split('\n').filter(l=>!l.match(/^.+?:\s*(all|\d[\d,\s]*)$/i)).join('\n').trim();
+
+  // Build filtered file chunks
+  const chunks = upFiles.filter(f=>f.text?.trim()).map(f => {
+    const fname = f.name.toLowerCase().replace(/\.(pdf|png|jpg|jpeg)$/,'');
+    const mKey = Object.keys(filters).find(k=>fname.includes(k)||k.includes(fname));
+    const text = mKey ? applyFilter(f.text, filters[mKey]) : f.text;
+    return {name:f.name, text};
+  });
+  t.fileChunks = chunks.map(c=>({name:c.name,pointCount:0}));
+
+  const raw = [chunks.map(c=>`[${c.name}]\n${c.text}`).join('\n\n'), extraNotes].filter(Boolean).join('\n\n');
+  if (!raw.trim()) { toast('No text'); return; }
 
   const wfw = Object.entries(defModes).filter(([,v])=>v==='wfw').map(([k])=>k);
   const know = Object.entries(defModes).filter(([,v])=>v==='know').map(([k])=>k);
-  // Save lang to test so getLangStr() can read it
-  // getLangStr() will be called inside prompt below
+  const fnames = chunks.map(c=>c.name);
 
-  goTestTab('summary', document.querySelectorAll('.inner-tab')[1]);
-  document.getElementById('summary-empty').style.display = 'none';
-  document.getElementById('summary-content').style.display = 'block';
-  document.getElementById('summary-content').innerHTML = '<div class="section-loading"><div class="spinner"></div><span>Summarising…</span></div>';
+  goTT('summary', document.querySelectorAll('.it')[1]);
+  document.getElementById('sum-empty').style.display='none';
+  document.getElementById('sum-content').style.display='block';
+  document.getElementById('sum-content').innerHTML='<div class="sec-load"><div class="spinner"></div><span>Summarising…</span></div>';
 
   try {
-    const sumLang = getLangStr();
-    const prompt = `${sumLang}
+    const prompt = `${getLang()}
 
-You are a study assistant for subject: "${t.subject}"${ctx?` (${ctx})`:''}.\n\nNOTES:\n<notes>\n${raw.slice(0,14000)}\n</notes>\n\n${wfw.length?`MUST learn word-for-word: ${wfw.join(', ')}`:''}${know.length?`\nJust need to understand: ${know.join(', ')}`:''}
+Study assistant for subject: "${t.subject}"${t.ctx?' ('+t.ctx+')':''}
+
+NOTES:
+<notes>
+${raw.slice(0,14000)}
+</notes>
+
+${wfw.length?'Must learn word-for-word: '+wfw.join(', '):''}
+${know.length?'Just understand: '+know.join(', '):''}
+Files: ${fnames.join(', ')||'manual notes'}
 
 Extract ONLY what is in the notes. Do not add outside knowledge.
-Respond ONLY with a raw JSON object — no markdown fences, no trailing commas, no extra text:
-{"clean":"Clean readable version of the notes, well structured.","points":[{"text":"Learning point","type":"normal|wfw|know","definition":"exact wording from notes if wfw, else null"}],"topics":["topic"]}
+Tag each point with its source filename. Respond with raw JSON only:
+{"clean":"Clean readable version of notes.","points":[{"text":"point","type":"normal|wfw|know","definition":"exact quote if wfw, else null","source":"filename.pdf"}],"topics":["topic"]}`;
 
-Rules: points should cover everything important. wfw points include the exact definition from the notes. Keep it concise.`;
-
-    const resp = await groqText(prompt);
-    const parsed = parseJSON(resp);
-    t.summary = parsed;
-    // Update plan tab info
-  const planInfo = document.getElementById('plan-exam-info');
-  const planWarn = document.getElementById('plan-no-date-warn');
-  if (planInfo && planWarn) {
-    if (t.examDate) {
-      const dLeft = daysUntil(t.examDate);
-      planInfo.textContent = 'Exam: ' + fmtDate(t.examDate) + ' · ' + (dLeft > 0 ? dLeft + ' days left' : 'Today!');
-      planWarn.style.display = 'none';
-      planInfo.style.display = 'block';
-    } else {
-      planInfo.style.display = 'none';
-      planWarn.style.display = 'block';
-    }
-  }
-    saveTests();
-    renderSummaryHTML(parsed);
+    const resp = await groq(prompt);
+    const parsed = parseJ(resp);
+    t.fileChunks.forEach(fc => { fc.pointCount=(parsed.points||[]).filter(p=>p.source===fc.name).length; });
+    t.summary = parsed; save();
+    renderSumHTML(parsed);
+    updatePlanDateInfo();
     toast('✓ Summary ready');
   } catch(err) {
-    document.getElementById('summary-content').innerHTML = `<div class="empty-state"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
+    document.getElementById('sum-content').innerHTML=`<div class="empty"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
     toast('❌ '+err.message);
   }
 }
 
-function renderSummaryHTML(d) {
-  const topics = (d.topics||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(' ');
-  const points = (d.points||[]).map((p,i)=>`<li class="lp-item ${p.type==='wfw'?'lp-wfw':''}">
-    <span class="lp-n">${String(i+1).padStart(2,'0')}</span>
-    <span>${p.type==='wfw'?`<span class="tag tag-wfw">word-for-word</span>`:p.type==='know'?`<span class="tag tag-know">understand</span>`:''}${esc(p.text)}${p.definition?`<div class="lp-def">"${esc(p.definition)}"</div>`:''}</span>
+function renderSumHTML(d) {
+  const topics=(d.topics||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join(' ');
+  const pts=(d.points||[]).map((p,i)=>`<li class="lpitem ${p.type==='wfw'?'wfw':''}">
+    <span class="lpn">${String(i+1).padStart(2,'0')}</span>
+    <div class="lp-body">
+      ${p.type==='wfw'?'<span class="lp-tag wfw">★ word-for-word</span>':p.type==='know'?'<span class="lp-tag know">◎ understand</span>':''}
+      ${esc(p.text)}
+      ${p.definition?`<div class="lp-def">"${esc(p.definition)}"</div>`:''}
+    </div>
   </li>`).join('');
-
-  document.getElementById('summary-content').innerHTML = `
-    <div style="margin-bottom:18px">${topics}</div>
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-hd"><div class="card-title"><span class="dot"></span> Clean notes</div><button class="btn btn-ghost btn-sm" onclick="cpEl('clean-notes-txt')">Copy</button></div>
-      <div style="font-size:0.88rem;line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto" id="clean-notes-txt">${esc(d.clean||'')}</div>
+  document.getElementById('sum-content').innerHTML=`
+    <div style="margin-bottom:14px;display:flex;gap:6px;flex-wrap:wrap">${topics}</div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="ch"><div class="ct"><span class="dot"></span>Clean notes</div><button class="btn bg bsm" onclick="cpEl('cleannotes')">Copy</button></div>
+      <div style="font-size:0.87rem;line-height:1.8;white-space:pre-wrap;max-height:280px;overflow-y:auto" id="cleannotes">${esc(d.clean||'')}</div>
     </div>
     <div class="card">
-      <div class="card-hd"><div class="card-title"><span class="dot dot-g"></span> Learning points</div><span class="chip">${(d.points||[]).length} points</span></div>
-      <ul class="lp-list">${points}</ul>
+      <div class="ch"><div class="ct"><span class="dot dot-o"></span>Learning points</div><span class="chip">${(d.points||[]).length}</span></div>
+      <ul class="lplist">${pts}</ul>
     </div>
-    <div class="actions-row">
-      <button class="btn btn-p btn-sm" onclick="goTestTab('plan',document.querySelectorAll('.inner-tab')[2])">→ Build study plan</button>
-    </div>`;
+    <div class="actions"><button class="btn bp bsm" onclick="goTT('plan',document.querySelectorAll('.it')[2])">→ Build plan</button></div>`;
 }
 
 // ── PLAN ─────────────────────────────────────────────────────────────────────
+function updatePlanDateInfo() {
+  const t=getT(); if(!t) return;
+  const pi=document.getElementById('plan-date-info'), pw=document.getElementById('plan-date-warn');
+  if(!pi||!pw) return;
+  const dl=daysUntil(t.examDate);
+  if(t.examDate){pi.textContent='Exam: '+fmtDate(t.examDate)+(dl>0?' · '+dl+' days':'');pi.style.display='block';pw.style.display='none';}
+  else{pi.style.display='none';pw.style.display='block';}
+}
+
 async function runPlan() {
-  const t = getTest(); if (!t || !apiKey) return;
-  const exam = t.examDate;
-  const mins = document.getElementById('plan-time').value;
+  const t = getT(); if (!t||!KEY) return;
+  if (!t.examDate) { toast('⚠️ No exam date set'); return; }
+  const dl = daysUntil(t.examDate);
+  if (dl<1) { toast('⚠️ Exam date must be in the future'); return; }
+  const mins = parseInt(document.getElementById('plan-time').value);
   const weak = document.getElementById('plan-weak').value.trim();
-  if (!exam) { toast('⚠️ Set an exam date for this test first'); return; }
 
-  const days = daysUntil(exam);
-  if (days < 1) { toast('⚠️ Exam date must be in the future'); return; }
+  document.getElementById('plan-empty').style.display='none';
+  document.getElementById('plan-content').style.display='block';
+  document.getElementById('plan-content').innerHTML='<div class="sec-load"><div class="spinner"></div><span>Building plan…</span></div>';
 
-  document.getElementById('plan-empty').style.display = 'none';
-  document.getElementById('plan-content').style.display = 'block';
-  document.getElementById('plan-content').innerHTML = '<div class="section-loading"><div class="spinner"></div><span>Building plan…</span></div>';
-
-  const pts = (t.summary?.points||[]);
-  const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}`).join('\n');
+  const allPts = (t.summary?.points||[]);
   const today = new Date(); today.setHours(0,0,0,0);
+  const maxDays = Math.min(dl-1, 14);
 
-  // Compute study dates ourselves so AI can't mess them up
-  const maxStudyDays = Math.min(days - 1, 14);
-  const studyDates = [];
-  for (let i = 1; i <= maxStudyDays; i++) {
-    const dd = new Date(today); dd.setDate(dd.getDate() + i);
-    const y=dd.getFullYear(),m=String(dd.getMonth()+1).padStart(2,'0'),d2=String(dd.getDate()).padStart(2,'0');
-    studyDates.push({ str: y+'-'+m+'-'+d2, label: dd.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) });
+  // Compute study dates
+  const slots = [];
+  for (let i=1; i<=maxDays; i++) {
+    const d=new Date(today); d.setDate(d.getDate()+i);
+    slots.push({str:ldStr(d), label:d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})});
   }
 
+  // ── SMART DISTRIBUTION ─────────────────────────────────────────────────────
+  // Group points by source
+  const srcGroups = {};
+  allPts.forEach((p,i) => { const s=p.source||'manual'; if(!srcGroups[s])srcGroups[s]=[]; srcGroups[s].push(i); });
+  const groups = Object.entries(srcGroups);
+
+  // Points per day based on study time (conservative: 3 pts per 60 min)
+  const ptsPerDay = Math.max(2, Math.round((mins/60)*3));
+  const neededSlots = Math.min(slots.length, Math.max(1, Math.ceil(allPts.length/ptsPerDay)));
+
+  // Distribute: fill each slot to ptsPerDay capacity, keeping sources together
+  const daySlots = []; // [{slotIdx, ptIndexes, sources}]
+  let slotIdx = 0;
+
+  for (const [src, idxs] of groups) {
+    // How many slots does this source need?
+    const slotsNeeded = Math.ceil(idxs.length/ptsPerDay);
+    for (let s=0; s<slotsNeeded && slotIdx<neededSlots; s++, slotIdx++) {
+      const chunk = idxs.slice(s*ptsPerDay, (s+1)*ptsPerDay);
+      daySlots.push({slotIdx, ptIndexes:chunk, sources:[src]});
+    }
+  }
+
+  // If we have leftover slots (odd points), DON'T spread — instead add a review day
+  const hasRoom = slotIdx < slots.length && allPts.length >= 3;
+
+  // Add review day
+  if (hasRoom) {
+    daySlots.push({slotIdx: slotIdx, ptIndexes: allPts.map((_,i)=>i), sources:['review'], isReview:true});
+    slotIdx++;
+  }
+
+  const planSlots = daySlots.slice(0, slots.length);
+
   try {
-    const datesStr = studyDates.map((d,i)=>i+': '+d.str+' ('+d.label+')').join(', ');
-    const planLang = getLangStr();
-    const prompt = `${planLang}
+    const dayDescs = planSlots.map((d,i)=>{
+      const pts = d.isReview ? 'ALL (review)' : d.ptIndexes.map(idx=>`${allPts[idx]?.text||''}`).join('; ');
+      return `Day ${i+1} (${slots[d.slotIdx]?.label}): ${d.isReview?'Review day':('Source: '+[...new Set(d.sources)].join('+'))} — ${pts.slice(0,200)}`;
+    }).join('\n');
 
-Create a study plan for a student.
-Subject: ${t.subject}, Study time per day: ${mins} minutes
-${ptsList?'Points to cover:\n'+ptsList:''}
-${weak?'Weak spots: '+weak:''}
+    const prompt = `${getLang()}
 
-Available study slots (index: date): ${datesStr}
-Scale to content — fewer points = fewer slots needed. Exam on ${exam}, no study that day.
+Create a study plan for "${t.subject}", ${mins} min/day.${weak?" Weak spots: "+weak:""}
 
-Respond ONLY with raw JSON (no markdown, no extra text):
-{"days":[{"label":"Mon 28 Apr","date":"2026-04-28","theme":"Short focus","pointIndexes":[0,1],"tasks":[{"icon":"📖","task":"task"}]}],"tips":["tip"]}`;
+Pre-assigned days (DO NOT change assignments):
+${dayDescs}
 
-    const resp = await groqText(prompt);
-    let parsed = parseJSON(resp);
-    // Always override AI dates with our computed correct ones
-    parsed.days = parsed.days.slice(0, studyDates.length).map((d, i) => {
-      const slot = studyDates[i];
-      return {...d, date: slot.str, label: slot.label};
-    });
-    t.plan = parsed;
+For each day give:
+- "theme": short descriptive title (5-7 words)  
+- "tasks": 2-3 specific things to DO (e.g. "make flashcards", "reread section", "practice writing from memory")
+
+Respond ONLY with raw JSON:
+{"days":[{"theme":"Short title","tasks":[{"icon":"📖","task":"Specific task"}]}],"tips":["1 short tip"]}
+The days array must have exactly ${planSlots.length} entries.`;
+
+    const resp = await groq(prompt);
+    const ai = parseJ(resp);
+
+    const finalDays = planSlots.map((d,i) => ({
+      label: slots[d.slotIdx]?.label||'',
+      date: slots[d.slotIdx]?.str||'',
+      theme: ai.days?.[i]?.theme || (d.isReview?'Review everything':'Study'),
+      tasks: ai.days?.[i]?.tasks||[],
+      pointIndexes: d.ptIndexes,
+      sources: d.sources,
+      isReview: d.isReview||false
+    }));
+
+    t.plan = {days:finalDays, tips:ai.tips||[]};
     t.doneDays = new Set();
-    saveTests();
-    renderPlanHTML(parsed, t);
-    renderSidebar(); renderDashboard(); renderSchedule();
+    save(); renderPlanHTML(t.plan,t); buildSchedule(); renderSidebar(); renderDash();
     toast('✓ Plan ready');
   } catch(err) {
-    document.getElementById('plan-content').innerHTML = `<div class="empty-state"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
+    document.getElementById('plan-content').innerHTML=`<div class="empty"><span class="em">❌</span><p>${esc(err.message)}</p></div>`;
     toast('❌ '+err.message);
   }
 }
 
 function renderPlanHTML(plan, t) {
-  const days = (plan.days||[]);
-  const done = t.doneDays||new Set();
-  const pct = days.length ? Math.round([...done].length/days.length*100) : 0;
+  const days=plan.days||[], done=t.doneDays||new Set(), allPts=t.summary?.points||[];
+  const pct=days.length?Math.round(done.size/days.length*100):0;
 
   const grid = days.map((d,i) => {
-    const pts = (d.pointIndexes||[]).map(idx => t.summary?.points?.[idx]?.text).filter(Boolean);
-    return `<div class="plan-day ${done.has(i)?'done':''}" onclick="openDayModal(${i})">
-      <div class="pd-lbl">${esc(d.label)}</div>
+    const pts = (d.pointIndexes||[]).map(idx=>allPts[idx]).filter(Boolean);
+    const srcs = [...new Set(d.sources||[])].filter(s=>s!=='review').map(s=>s.replace(/\.(pdf|png|jpg|jpeg)$/i,''));
+    const srcLabel = d.isReview ? '🔁 Review all' : srcs.join(' + ') || '';
+    const isDone = done.has(i);
+    // preview: show up to 3 points clearly
+    const preview = pts.slice(0,3).map(p=>`<div class="pd-pts">${p.type==='wfw'?'★ ':p.type==='know'?'◎ ':'• '}${esc(p.text.length>50?p.text.slice(0,50)+'…':p.text)}</div>`).join('');
+
+    return `<div class="pday ${isDone?'done':''} ${d.isReview?'review':''}" onclick="openDay(${i})">
+      ${isDone?'<div class="pd-done-tick">✓</div>':''}
+      <div class="pd-label">${esc(d.label)}</div>
       <div class="pd-theme">${esc(d.theme)}</div>
-      <div class="pd-pts">${pts.slice(0,2).map(p=>p.length>45?p.slice(0,45)+'…':p).join('<br>')}</div>
+      ${srcLabel?`<div class="pd-src">${esc(srcLabel)}</div>`:''}
+      ${preview}
+      ${pts.length>3?`<div class="pd-count">+${pts.length-3} more points</div>`:''}
     </div>`;
   }).join('');
 
-  const tips = (plan.tips||[]).map(tip=>`<div style="padding:8px 0;border-bottom:1px solid var(--br);font-size:0.84rem;color:var(--ink3)">${esc(tip)}</div>`).join('');
+  const tips=(plan.tips||[]).map(tip=>`<div class="pt-row"><span>💡</span><span>${esc(tip)}</span></div>`).join('');
 
-  document.getElementById('plan-content').innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+  document.getElementById('plan-content').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div>
-        <div style="font-family:'Fraunces',serif;font-size:1.1rem;font-weight:500">${esc(t.subject)}</div>
-        <div style="font-size:0.8rem;color:var(--ink3);margin-top:2px">${days.length} study days · ${[...done].length} done</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:500">${esc(t.subject)}</div>
+        <div style="font-size:0.78rem;color:var(--ink3);margin-top:2px">${days.length} study days · ${allPts.length} points · ${done.size} done</div>
       </div>
-      <div style="font-family:'DM Mono',monospace;font-size:0.75rem;color:var(--ac)">${pct}% complete</div>
+      <div style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--ac)">${pct}%</div>
     </div>
-    <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%"></div></div>
-    <div class="plan-days" style="margin-top:16px">${grid}</div>
-    ${tips?`<div class="card" style="margin-top:16px"><div class="card-hd" style="margin-bottom:8px"><div class="card-title"><span class="dot dot-o"></span> Tips</div></div>${tips}</div>`:''}`;
+    <div class="pbar-wrap"><div class="pbar-fill" style="width:${pct}%"></div></div>
+    <div class="plan-grid" style="margin-top:14px">${grid}</div>
+    ${tips?`<div class="card" style="margin-top:12px">${tips}</div>`:''}`;
 }
 
-// ── DAY MODAL ─────────────────────────────────────────────────────────────────
-let activeDayIdx = -1;
+// ── DAY MODAL ──────────────────────────────────────────────────────────────────
+let activeDay = -1;
 
-function openDayModal(idx) {
-  activeDayIdx = idx;
-  const t = getTest(); if (!t) return;
+function openDay(idx) {
+  activeDay = idx;
+  const t = getT(); if (!t) return;
   const day = t.plan?.days?.[idx]; if (!day) return;
-  const pts = (day.pointIndexes||[]).map(i => t.summary?.points?.[i]).filter(Boolean);
+  const allPts = t.summary?.points||[];
+  const pts = (day.pointIndexes||[]).map(i=>allPts[i]).filter(Boolean);
   const isDone = (t.doneDays||new Set()).has(idx);
 
-  const ptsHTML = pts.map(p=>`<div style="padding:10px 12px;background:var(--s2);border-radius:9px;margin-bottom:7px;border-left:3px solid ${p.type==='wfw'?'var(--ac2)':p.type==='know'?'var(--ok)':'var(--br)'}">
-    ${p.type==='wfw'?`<span class="tag tag-wfw" style="margin-bottom:4px;display:inline-block">word-for-word</span><br>`:''}
-    <span style="font-size:0.87rem;line-height:1.6">${esc(p.text)}</span>
-    ${p.definition?`<div style="margin-top:5px;font-size:0.8rem;color:var(--ink3);font-style:italic">"${esc(p.definition)}"</div>`:''}
+  // Previous day's points for review questions
+  const prevPts = idx>0 ? ((t.plan.days[idx-1]?.pointIndexes||[]).map(i=>allPts[i]).filter(Boolean)) : [];
+
+  const studyHTML = pts.map(p=>`<div class="study-block ${p.type==='wfw'?'wfw':p.type==='know'?'know':''}">
+    <div class="sb-title">${p.type==='wfw'?'★ ':'◎ '}${esc(p.text)}</div>
+    ${p.definition?`<div class="sb-def">"${esc(p.definition)}"</div>`:''}
   </div>`).join('');
 
-  const tasksHTML = (day.tasks||[]).map(t=>`<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--br);font-size:0.85rem;color:var(--ink2)"><span>${t.icon}</span><span>${esc(t.task)}</span></div>`).join('');
+  const tasksHTML = (day.tasks||[]).map(t=>`<div class="pt-row"><span>${t.icon||'📌'}</span><span>${esc(t.task)}</span></div>`).join('');
 
   openModal(`
-    <h2>${esc(day.theme)}</h2>
-    <div class="modal-sub">${esc(day.label)}</div>
-    <div class="modal-section">
-      <div class="modal-section-title">What to study</div>
-      ${ptsHTML||'<p style="color:var(--ink3);font-size:0.84rem">No specific points assigned.</p>'}
-    </div>
-    <div class="modal-section">
-      <div class="modal-section-title">Tasks</div>
-      ${tasksHTML}
-    </div>
-    <div class="actions-row">
-      <button class="btn btn-p btn-sm" onclick="startQuiz(${idx})">🧠 Quiz me</button>
-      ${!isDone
-        ? `<button class="btn btn-ghost btn-sm" style="color:var(--ok);border-color:rgba(39,105,79,0.4)" onclick="markDone(${idx})">✓ Mark done</button>`
-        : `<span style="color:var(--ok);font-size:0.85rem;align-self:center">✓ Completed</span>`}
+    <div class="mh2">${esc(day.theme)}</div>
+    <div class="msub">${esc(day.label)} · ${pts.length} point${pts.length!==1?'s':''} to study</div>
+    ${prevPts.length?`<div style="background:var(--warn-light);border:1px solid rgba(139,69,19,0.2);border-radius:8px;padding:8px 12px;font-size:0.8rem;color:var(--warn);margin-bottom:14px">🔁 Quiz starts with questions from <strong>yesterday's</strong> material too</div>`:''}
+    <div class="msec-title">What to learn today</div>
+    ${studyHTML||'<p style="color:var(--ink3);font-size:0.84rem">No specific points for this day.</p>'}
+    <div class="msec-title">How to study</div>
+    ${tasksHTML}
+    <div class="actions">
+      <button class="btn bp bsm" onclick="startQuiz(${idx})">🧠 Start quiz</button>
+      ${!isDone?`<button class="btn bg bsm" style="color:var(--ok);border-color:rgba(42,102,68,0.4)" onclick="markDone(${idx})">✓ Mark done</button>`:'<span style="color:var(--ok);font-size:0.84rem;align-self:center">✓ Completed</span>'}
     </div>`);
 }
 
-async function startQuiz(idx) {
-  const t = getTest(); if (!t || !apiKey) return;
-  const day = t.plan?.days?.[idx]; if (!day) return;
-  const pts = (day.pointIndexes||[]).map(i => t.summary?.points?.[i]).filter(Boolean);
-  if (!pts.length) { toast('No points assigned for this day'); return; }
+// ── QUIZ ──────────────────────────────────────────────────────────────────────
+async function startQuiz(dayIdx) {
+  const t = getT(); if (!t||!KEY) { toast('Need Groq key'); return; }
+  const day = t.plan?.days?.[dayIdx]; if (!day) return;
+  const allPts = t.summary?.points||[];
+  const todayPts = (day.pointIndexes||[]).map(i=>allPts[i]).filter(Boolean);
+  const prevPts = dayIdx>0 ? ((t.plan.days[dayIdx-1]?.pointIndexes||[]).map(i=>allPts[i]).filter(Boolean)) : [];
 
-  document.getElementById('modal-content').innerHTML = `<h2>Quiz — ${esc(day.theme)}</h2><div class="section-loading" style="padding:30px"><div class="spinner"></div><span>Generating questions…</span></div>`;
+  if (!todayPts.length) { toast('No points for this day'); return; }
+
+  document.getElementById('modal-body').innerHTML=`<div class="mh2">Quiz — ${esc(day.theme)}</div><div class="sec-load" style="padding:28px"><div class="spinner"></div><span>Generating…</span></div>`;
+
+  const todayList = todayPts.map((p,i)=>`T${i+1}.[${p.type}] ${p.text}${p.definition?' — "'+p.definition+'"':''}`).join('\n');
+  const prevList = prevPts.slice(0,4).map((p,i)=>`P${i+1}.[${p.type}] ${p.text}${p.definition?' — "'+p.definition+'"':''}`).join('\n');
 
   try {
-    const ptsList = pts.map((p,i)=>`${i+1}.[${p.type}] ${p.text}${p.definition?' — "'+p.definition+'"':''}`).join('\n');
-    const langInstr = getLangStr();
-    const prompt = `${langInstr}
+    const prompt = `${getLang()}
 
-Create a quiz for a student based ONLY on these learning points:
-${ptsList}
+Create a mixed quiz for a student. Use BOTH today's AND yesterday's material.
 
-Rules:
-- For word-for-word points: ask the student to recall the exact definition.
-- For understand/normal points: ask a conceptual question.
-- Write ALL text (questions, options, explanations) in the correct language as instructed above.
-- Do NOT mix languages.
+TODAY's points (focus: ~70% of questions):
+${todayList}
 
-Respond ONLY with a raw JSON object. No markdown, no extra text:
-{"questions":[{"q":"question text","opts":["A. option","B. option","C. option","D. option"],"correct":0,"explain":"brief explanation"}]}
+YESTERDAY's points (review: ~30% of questions, if any):
+${prevList||'(none)'}
 
-Create ${Math.min(pts.length*2,6)} questions.`;
+Create ${Math.min(todayPts.length*2+Math.min(prevPts.length,2), 8)} questions total.
 
-    const resp = await groqText(prompt);
-    quizData = parseJSON(resp);
-    quizIdx = 0;
-    showQuizQ(idx);
-  } catch(err) {
-    toast('❌ '+err.message);
-    openDayModal(idx);
-  }
+Mix question types:
+- "mc": multiple choice (4 options) — good for recall and definitions
+- "write": open-ended writing — ask student to explain a concept or write a definition from memory
+
+For "wfw" points: use "write" type asking to recall exact definition.
+For "know" and "normal": mix of mc and write.
+
+ALL text in the correct language (per the language instruction above).
+
+Respond ONLY with raw JSON:
+{"questions":[{"type":"mc","q":"question","opts":["A. opt","B. opt","C. opt","D. opt"],"correct":0,"explain":"why","keyPoints":[]},{"type":"write","q":"question","keyPoints":["must include this","and this"],"modelAnswer":"ideal answer"}]}`;
+
+    const resp = await groq(prompt);
+    quizQ = parseJ(resp); quizIdx = 0;
+    showQ(dayIdx);
+  } catch(err) { toast('❌ '+err.message); openDay(dayIdx); }
 }
 
-function showQuizQ(dayIdx) {
-  const day = getTest()?.plan?.days?.[dayIdx];
-  const qs = quizData?.questions||[];
-  if (quizIdx >= qs.length) {
-    document.getElementById('modal-content').innerHTML = `
-      <h2>Done! 🎉</h2>
-      <p style="color:var(--ink3);margin:10px 0 18px;font-size:0.88rem">Went through all ${qs.length} questions for "${esc(day?.theme||'')}".</p>
-      <div class="actions-row">
-        <button class="btn btn-ghost btn-sm" style="color:var(--ok);border-color:rgba(39,105,79,0.4)" onclick="markDone(${dayIdx})">✓ Mark day done</button>
-        <button class="btn btn-ghost btn-sm" onclick="openDayModal(${dayIdx})">← Back</button>
+function showQ(dayIdx) {
+  const day = getT()?.plan?.days?.[dayIdx];
+  const qs = quizQ?.questions||[];
+  if (quizIdx>=qs.length) {
+    document.getElementById('modal-body').innerHTML=`
+      <div class="mh2">Done! 🎉</div>
+      <p style="color:var(--ink3);margin:10px 0 18px;font-size:0.88rem">Completed all ${qs.length} questions for "${esc(day?.theme||'')}".</p>
+      <div class="actions">
+        <button class="btn bg bsm" style="color:var(--ok);border-color:rgba(42,102,68,0.4)" onclick="markDone(${dayIdx})">✓ Mark day done</button>
+        <button class="btn bg bsm" onclick="openDay(${dayIdx})">← Back</button>
       </div>`;
     return;
   }
   const q = qs[quizIdx];
-  document.getElementById('modal-content').innerHTML = `
-    <h2>${esc(day?.theme||'Quiz')}</h2>
-    <div class="modal-sub">Question ${quizIdx+1} of ${qs.length}</div>
-    <div class="quiz-q">${esc(q.q)}</div>
-    <div class="quiz-opts">${q.opts.map((o,i)=>`<button class="quiz-opt" onclick="answerQ(${i},${q.correct},${dayIdx})">${esc(o)}</button>`).join('')}</div>
-    <div id="qexp" style="display:none" class="quiz-exp">${esc(q.explain||'')}</div>
-    <button class="btn btn-p btn-sm" id="qnext" style="display:none" onclick="quizIdx++;showQuizQ(${dayIdx})">Next →</button>`;
+  const prog = `<div class="quiz-prog">Question ${quizIdx+1} of ${qs.length}</div>`;
+
+  if (q.type==='mc') {
+    document.getElementById('modal-body').innerHTML=`
+      <div class="mh2">${esc(day?.theme||'Quiz')}</div>
+      <div class="msub">${esc(day?.label||'')} — Multiple choice</div>
+      ${prog}
+      <div class="quiz-q">${esc(q.q)}</div>
+      <div class="quiz-opts">${(q.opts||[]).map((o,i)=>`<button class="qopt" onclick="answerMC(${i},${q.correct},${dayIdx})">${esc(o)}</button>`).join('')}</div>
+      <div id="qexp" style="display:none" class="quiz-exp">${esc(q.explain||'')}</div>
+      <button class="btn bp bsm" id="qnext" style="display:none" onclick="quizIdx++;showQ(${dayIdx})">Next →</button>`;
+  } else {
+    document.getElementById('modal-body').innerHTML=`
+      <div class="mh2">${esc(day?.theme||'Quiz')}</div>
+      <div class="msub">${esc(day?.label||'')} — Write your answer</div>
+      ${prog}
+      <div class="quiz-q">${esc(q.q)}</div>
+      <textarea class="quiz-write" id="qwrite" placeholder="Write your answer here…"></textarea>
+      <button class="btn bp bsm" onclick="checkWrite(${dayIdx})">Check answer</button>
+      <div id="qfeedback" style="display:none"></div>
+      <button class="btn bp bsm" id="qnext" style="display:none" onclick="quizIdx++;showQ(${dayIdx})">Next →</button>`;
+  }
 }
 
-function answerQ(chosen, correct, dayIdx) {
-  document.querySelectorAll('.quiz-opt').forEach((o,i)=>{ o.disabled=true; if(i===correct)o.classList.add('correct'); else if(i===chosen)o.classList.add('wrong'); });
+function answerMC(chosen, correct, dayIdx) {
+  document.querySelectorAll('.qopt').forEach((o,i)=>{ o.disabled=true; if(i===correct)o.classList.add('correct'); else if(i===chosen)o.classList.add('wrong'); });
   document.getElementById('qexp').style.display='block';
   document.getElementById('qnext').style.display='inline-flex';
 }
 
-function markDone(idx) {
-  const t = getTest(); if (!t) return;
-  if (!t.doneDays) t.doneDays = new Set();
-  t.doneDays.add(idx);
-  saveTests();
-  renderPlanHTML(t.plan, t);
-  renderDashboard();
-  closeModal();
-  toast('✓ Day marked as done!');
-}
+async function checkWrite(dayIdx) {
+  const q = quizQ?.questions?.[quizIdx];
+  const ans = document.getElementById('qwrite')?.value.trim();
+  if (!ans) { toast('Write something first'); return; }
 
-// ── CHAT ─────────────────────────────────────────────────────────────────────
-async function sendChat() {
-  if (!apiKey) { toast('⚠️ Need a Groq key'); return; }
-  const t = getTest(); if (!t) return;
-  const inp = document.getElementById('chat-in');
-  const msg = inp.value.trim(); if (!msg) return;
-  inp.value = '';
-
-  if (!t.chatHistory) t.chatHistory = [];
-  t.chatHistory.push({role:'user',content:msg});
-  appendMsg(msg, 'user');
-  const thinking = appendMsg('Thinking…', 'ai thinking');
-  document.getElementById('chat-msgs').scrollTop = 9999;
-
-  const notes = t.summary?.clean || Object.values(t.notes?.extracted||{}).join('\n\n') || t.notes?.manualText || '';
-  const history = t.chatHistory.slice(-8).map(m=>`${m.role==='user'?'Student':'Assistant'}: ${m.content}`).join('\n');
+  const fb = document.getElementById('qfeedback');
+  fb.style.display='block'; fb.className='quiz-feedback'; fb.textContent='Checking…';
 
   try {
-    const chatLang = getLangStr();
-    const prompt = `${chatLang}
+    const prompt = `${getLang()}
 
-You are a study assistant for the subject: "${t.subject}".
-Your job is to help the student understand the material from their notes.
+A student answered a quiz question. Check if their answer covers the key points.
 
-NOTES:
-${notes.slice(0, 10000)}
+Question: ${q.q}
+Key points that must be included: ${(q.keyPoints||[]).join('; ')||q.modelAnswer||''}
+Model answer: ${q.modelAnswer||''}
+Student answer: "${ans}"
 
-Rules:
-- Answer based on the notes above. You MAY add brief clarifications or examples if they genuinely help understanding.
-- If something is truly not covered in the notes at all, say so briefly — but first try to answer from what IS there.
-- Be helpful, direct, and conversational.
-- Write in the language instructed above.
+Decide: does the student's answer cover the essential meaning?
+Respond with raw JSON only: {"ok":true|false,"feedback":"1-2 sentences: what they got right/wrong and the correct answer"}`;
 
-Recent conversation:
-${history}
-
-Answer the student's last question:`;
-    const resp = await groqText(prompt);
-    thinking.textContent = resp;
-    thinking.classList.remove('thinking');
-    t.chatHistory.push({role:'assistant',content:resp});
-    saveTests();
-  } catch(err) {
-    thinking.textContent = '❌ '+err.message;
+    const resp = await groq(prompt);
+    const result = parseJ(resp);
+    fb.className = 'quiz-feedback '+(result.ok?'good':'bad');
+    fb.textContent = result.feedback || (result.ok ? '✓ Good answer!' : '✗ Not quite right.');
+  } catch {
+    fb.className='quiz-feedback bad'; fb.textContent='Could not check — compare with: '+(q.modelAnswer||q.keyPoints?.join(', ')||'');
   }
-  document.getElementById('chat-msgs').scrollTop = 9999;
+  document.getElementById('qnext').style.display='inline-flex';
 }
 
-function appendMsg(text, cls) {
-  const c = document.getElementById('chat-msgs');
-  const d = document.createElement('div');
-  d.className = 'msg ' + cls;
-  d.textContent = text;
-  c.appendChild(d);
-  return d;
+function markDone(idx) {
+  const t=getT(); if(!t) return;
+  if(!t.doneDays) t.doneDays=new Set();
+  t.doneDays.add(idx); save();
+  renderPlanHTML(t.plan,t); renderDash(); closeModal(); toast('✓ Day done!');
 }
 
-// ── MODAL HELPERS ─────────────────────────────────────────────────────────────
-function openModal(html) {
-  document.getElementById('modal-content').innerHTML = html;
-  document.getElementById('modal').style.display = 'flex';
-}
-function closeModal() { document.getElementById('modal').style.display = 'none'; }
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+async function sendChat() {
+  if (!KEY) { toast('Need Groq key'); return; }
+  const t = getT(); if (!t) return;
+  const inp = document.getElementById('chat-in');
+  const msg = inp.value.trim(); if (!msg) return;
+  inp.value='';
+  if (!t.chat) t.chat=[];
+  t.chat.push({role:'user',content:msg}); addMsg(msg,'u');
+  const thinking = addMsg('…','a thinking');
+  document.getElementById('chat-msgs').scrollTop=9999;
 
-// ── GROQ API ─────────────────────────────────────────────────────────────────
-// Returns language instruction for any prompt, based on saved test language setting
-function getLangStr() {
-  const t = getTest();
-  const lang = t?.notes?.lang || 'keep';
-  const langMap = {'en':'English','fr':'French','de':'German','es':'Spanish','nl':'Dutch','it':'Italian'};
-  if (lang === 'keep') {
-    return 'IMPORTANT: Detect the language of the notes/content provided and write your ENTIRE response in that SAME language. Do NOT use English unless the notes are in English. Match the language exactly.';
-  }
-  return `IMPORTANT: Write your ENTIRE response in ${langMap[lang] || 'English'}, including all questions, answers, explanations, and labels. Do not mix languages.`;
+  const fileTexts=(t.files||[]).filter(f=>f.text?.trim()).map(f=>f.text).join('\n\n');
+  const notes = t.summary?.clean || [fileTexts, t.manual].filter(Boolean).join('\n\n');
+  const hist = t.chat.slice(-10).map(m=>`${m.role==='user'?'Student':'Assistant'}: ${m.content}`).join('\n');
+
+  try {
+    const prompt = `${getLang()}
+
+Study assistant for "${t.subject}".
+
+STUDENT NOTES:
+${notes.slice(0,12000)}
+
+The answer is very likely in the notes — read carefully. Be direct and helpful.
+
+Conversation:
+${hist}
+
+Answer concisely:`;
+    const resp = await groq(prompt);
+    thinking.textContent=resp; thinking.classList.remove('thinking');
+    t.chat.push({role:'assistant',content:resp}); save();
+  } catch(err) { thinking.textContent='❌ '+err.message; }
+  document.getElementById('chat-msgs').scrollTop=9999;
 }
 
-// Robust JSON parse — strips markdown fences and trailing garbage
-function parseJSON(raw) {
-  // strip fences
-  let s = raw.replace(/```json|```/gi, '').trim();
-  // find first { or [
-  const start = s.search(/[\[{]/);
-  if (start > 0) s = s.slice(start);
-  // find matching end bracket
-  let depth = 0, end = -1, open = s[0];
-  const close = open === '{' ? '}' : ']';
-  for (let i = 0; i < s.length; i++) {
-    if (s[i] === open) depth++;
-    else if (s[i] === close) { depth--; if (depth === 0) { end = i; break; } }
-  }
-  if (end !== -1) s = s.slice(0, end + 1);
-  return JSON.parse(s);
+function addMsg(text, cls) {
+  const c=document.getElementById('chat-msgs'), d=document.createElement('div');
+  d.className='msg '+cls; d.textContent=text; c.appendChild(d); return d;
 }
 
-async function groqText(prompt) {
-  const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-    body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:4000,temperature:0.15,messages:[{role:'user',content:prompt}]})
-  });
-  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e?.error?.message||'Groq error '+r.status); }
-  return (await r.json()).choices[0].message.content;
-}
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(html) { document.getElementById('modal-body').innerHTML=html; document.getElementById('modal').style.display='flex'; }
+function closeModal() { document.getElementById('modal').style.display='none'; }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-function getTest() { return tests.find(t => t.id === currentTestId) || null; }
+function getT() { return tests.find(t=>t.id===tid)||null; }
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-function daysUntil(dateStr) { if (!dateStr) return null; const [y,m,d]=dateStr.split('-').map(Number); const exam=new Date(y,m-1,d); const now=new Date(); now.setHours(0,0,0,0); exam.setHours(0,0,0,0); return Math.round((exam-now)/86400000); }
-function fmtDate(s) { if(!s)return''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
-function localDateStr(date) { const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0'); return y+'-'+m+'-'+d; }
+function daysUntil(s) { if(!s) return null; const [y,m,d]=s.split('-').map(Number),e=new Date(y,m-1,d),n=new Date(); n.setHours(0,0,0,0); e.setHours(0,0,0,0); return Math.round((e-n)/86400000); }
+function fmtDate(s) { if(!s) return ''; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function ldStr(date) { const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
 function cpEl(id) { navigator.clipboard.writeText(document.getElementById(id)?.textContent||''); toast('✓ Copied'); }
 
 let _tt;
-function toast(m) { const e=document.getElementById('toast'); e.textContent=m; e.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('show'),3000); }
-
-
+function toast(m) { const e=document.getElementById('toast'); e.textContent=m; e.classList.add('on'); clearTimeout(_tt); _tt=setTimeout(()=>e.classList.remove('on'),3000); }
 </script>
 </body>
 </html>
