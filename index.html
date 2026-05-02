@@ -777,17 +777,25 @@ function parseFilters(text) {
 }
 
 // Extract only the numbered sections matching given numbers
+// Handles: "1.", "1)", "1:", leading spaces, sub-bullets carried along
 function applyFilter(text, nums) {
-  if (nums==='all'||!nums?.length) return text;
-  const sections=[], lines=text.split('\n'); let cur=null;
+  if (nums === 'all' || !nums?.length) return text;
+  const sections = [], lines = text.split('\n'); let cur = null;
   lines.forEach(line => {
-    const m=line.match(/^(\d+)[.):\s]/);
-    if (m) { if(cur) sections.push(cur); cur={n:parseInt(m[1]),lines:[line]}; }
-    else if (cur) cur.lines.push(line);
+    // Match: optional whitespace, digits, then . ) : or space
+    const m = line.match(/^\s*(\d+)[.):]/);
+    if (m) {
+      if (cur) sections.push(cur);
+      cur = { n: parseInt(m[1]), lines: [line] };
+    } else if (cur) {
+      cur.lines.push(line); // carry sub-bullets
+    }
   });
   if (cur) sections.push(cur);
-  if (!sections.length) return text;
-  return sections.filter(s=>nums.includes(s.n)).map(s=>s.lines.join('\n')).join('\n\n');
+  if (!sections.length) return text; // no numbered sections = return all
+  const matched = sections.filter(s => nums.includes(s.n));
+  if (!matched.length) return text; // none matched = return all
+  return matched.map(s => s.lines.join('\n')).join('\n\n');
 }
 
 function renderDefs() {
@@ -880,9 +888,11 @@ ${wfw.length?'Must learn word-for-word: '+wfw.join(', '):''}
 ${know.length?'Just understand: '+know.join(', '):''}
 Files: ${fnames.join(', ')||'manual notes'}
 
-Extract ONLY what is in the notes. Do not add outside knowledge.
-Tag each point with its source filename. Respond with raw JSON only:
-{"clean":"Clean readable version of notes.","points":[{"text":"point","type":"normal|wfw|know","definition":"exact quote if wfw, else null","source":"filename.pdf"}],"topics":["topic"]}`;
+CRITICAL: Extract ONLY the content provided above. The notes may already be filtered to specific questions/sections only — do NOT add or infer content beyond what is written.
+Tag each point with its source filename.
+
+Respond with raw JSON only, no extra text:
+{"clean":"Clean readable version of the provided notes only.","points":[{"text":"concise learning point","type":"normal|wfw|know","definition":"exact quote from notes if wfw, else null","source":"filename.pdf"}],"topics":["topic"]}`;
 
     const resp = await groq(prompt);
     const parsed = parseJ(resp);
@@ -1121,27 +1131,33 @@ async function startQuiz(dayIdx) {
   try {
     const prompt = `${getLang()}
 
-Create a mixed quiz for a student. Use BOTH today's AND yesterday's material.
+Create a quiz for a student. Use BOTH today's AND yesterday's material.
 
-TODAY's points (focus: ~70% of questions):
+TODAY's points (~70% of questions):
 ${todayList}
 
-YESTERDAY's points (review: ~30% of questions, if any):
+YESTERDAY's points for review (~30%, if any):
 ${prevList||'(none)'}
 
-Create ${Math.min(todayPts.length*2+Math.min(prevPts.length,2), 8)} questions total.
+Total questions: ${Math.min(todayPts.length*2+Math.min(prevPts.length,2), 8)}
 
-Mix question types:
-- "mc": multiple choice (4 options) — good for recall and definitions
-- "write": open-ended writing — ask student to explain a concept or write a definition from memory
+QUESTION LEVEL: B1-B2. This means:
+- Ask students to EXPLAIN relationships, causes, consequences — not just name things
+- "Why did X lead to Y?", "What was the consequence of X?", "Explain the relationship between X and Y", "In your own words, describe why X was significant"
+- For multiple choice: wrong options must be plausible, not obviously wrong
+- Avoid simple recall like "Who was X?" or "When did X happen?" — go deeper
 
-For "wfw" points: use "write" type asking to recall exact definition.
-For "know" and "normal": mix of mc and write.
+Question types:
+- "mc": 4 options, one correct — use for concepts and relationships
+- "write": student writes answer — use for wfw definitions and explanations
 
-ALL text in the correct language (per the language instruction above).
+For "wfw" points: always use "write", ask them to reproduce the definition from memory.
+For "know" / "normal": mix mc and write, focus on understanding and reasoning.
+
+Write ALL text in the correct language.
 
 Respond ONLY with raw JSON:
-{"questions":[{"type":"mc","q":"question","opts":["A. opt","B. opt","C. opt","D. opt"],"correct":0,"explain":"why","keyPoints":[]},{"type":"write","q":"question","keyPoints":["must include this","and this"],"modelAnswer":"ideal answer"}]}`;
+{"questions":[{"type":"mc","q":"question","opts":["A. option","B. option","C. option","D. option"],"correct":0,"explain":"explanation of why the answer is correct","keyPoints":[]},{"type":"write","q":"question","keyPoints":["key idea 1 that must be in the answer","key idea 2"],"modelAnswer":"ideal full answer"}]}`;
 
     const resp = await groq(prompt);
     quizQ = parseJ(resp); quizIdx = 0;
